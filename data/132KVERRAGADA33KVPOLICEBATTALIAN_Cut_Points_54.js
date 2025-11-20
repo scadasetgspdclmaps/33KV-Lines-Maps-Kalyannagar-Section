@@ -1,0 +1,1 @@
+var json_132KVERRAGADA33KVPOLICEBATTALIAN_Cut_Points_54 = {"type":"FeatureCollection","name":"132KVERRAGADA33KVPOLICEBATTALIAN_Cut_Points_54","crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:OGC:1.3:CRS84"}},"features":[]}
