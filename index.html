@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- ══ KALYANNAGAR SECTION DATA FILES ══ -->
 <script src="data/33KVErragaddaPolicebattalian_1.js"></script>
@@ -447,6 +448,41 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 /* ══ EDIT MODE marker highlight ══ */
 .edit-mode-point{filter:drop-shadow(0 0 7px rgba(0,200,255,.9))!important;cursor:crosshair!important;transition:filter .2s}
+
+/* ══ UPLOAD BUTTON ══ */
+.tb-upload-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:16px;
+  border:1px solid rgba(0,200,255,.3);background:rgba(0,200,255,.08);color:var(--live);
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer;white-space:nowrap;
+  transition:all .2s;flex-shrink:0}
+.tb-upload-btn:hover{background:rgba(0,200,255,.18);color:#fff}
+
+/* ══ DATA FILES PANEL ══ */
+.df-row{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.df-select{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;
+  padding:6px 10px;color:var(--text);font-family:var(--sans);font-size:11px;outline:none;cursor:pointer;min-width:0}
+.df-select option{background:#0d1b2a;color:#b0cce0}
+.df-btn{padding:5px 11px;border-radius:8px;border:none;cursor:pointer;font-family:var(--mono);
+  font-size:9px;letter-spacing:.8px;font-weight:600;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.df-run{background:rgba(0,200,255,.15);color:var(--live);border:1px solid rgba(0,200,255,.3)}
+.df-run:hover{background:rgba(0,200,255,.28);color:#fff}
+.df-del-f{background:rgba(255,23,68,.1);color:#ff4466;border:1px solid rgba(255,23,68,.25)}
+.df-del-f:hover{background:rgba(255,23,68,.22);color:#fff}
+.df-hint{font-family:var(--sans);font-size:10px;color:rgba(176,204,224,.35);line-height:1.45;margin-top:2px}
+#dfFileInput{display:none}
+
+/* ══ FEEDER STATS ══ */
+.fstat-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin-top:4px}
+.fstat-item{display:flex;flex-direction:column;gap:2px;padding:6px 8px;
+  background:rgba(0,200,255,.04);border-radius:6px;border:1px solid rgba(0,200,255,.08)}
+.fstat-lbl{font-family:var(--mono);font-size:7px;color:rgba(0,200,255,.45);letter-spacing:1px}
+.fstat-val{font-family:var(--mono);font-size:12px;color:var(--live);font-weight:600}
+.fstat-val.oh{color:#f44336}.fstat-val.ug{color:#2196f3}.fstat-val.pole{color:#ff9800}
+
+/* Feeder delete btn */
+.fn-del-btn{font-size:9px;cursor:pointer;padding:1px 5px;border-radius:4px;
+  border:1px solid rgba(255,23,68,.25);color:rgba(255,68,102,.6);
+  background:rgba(255,23,68,.06);font-family:var(--mono);transition:.2s;flex-shrink:0}
+.fn-del-btn:hover{background:rgba(255,23,68,.2);color:#ff4466}
 </style>
 </head>
 <body>
@@ -465,6 +501,8 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
     <input id="srchInput" placeholder="Search pole no., feeder, cable point…" autocomplete="off"/>
     <span class="srch-ic">⌕</span>
   </div>
+  <div class="tb-upload-btn" onclick="document.getElementById('dfFileInput').click()" title="Upload corrected feeder CSV/XLSX">⬆ Upload CSV/XLSX</div>
+  <input type="file" id="dfFileInput" accept=".csv,.xlsx,.xls" onchange="handleFileUpload(this)"/>
   <div class="fs-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶</div>
   <div class="chip chip-live">● LIVE</div>
 </div>
@@ -486,6 +524,18 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
       <input class="fsearch-input" id="feederSearch" placeholder="Search feeders…" autocomplete="off" oninput="filterFeeders(this.value)"/>
     </div>
     <div id="feederChecks" style="display:flex;flex-direction:column;margin-top:2px"></div>
+  </div>
+  <div class="psec" id="df-panel-sec">
+    <div class="psec-t" style="display:flex;justify-content:space-between;align-items:center">
+      // DATA FILES
+      <span style="font-family:var(--sans);font-size:9px;color:rgba(0,200,255,.4)">CSV / XLSX</span>
+    </div>
+    <div class="df-row">
+      <select class="df-select" id="dfFileSelect"><option value="">— no file loaded —</option></select>
+      <button class="df-btn df-run" onclick="runUploadedFeeder()" title="Apply to map">RUN</button>
+      <button class="df-btn df-del-f" onclick="deleteUploadedFeeder()" title="Delete feeder from map">DEL</button>
+    </div>
+    <div class="df-hint">Upload corrected feeder CSV/XLSX, select file, then Run.<br>Existing SS/EHT points remain visible.</div>
   </div>
 </div>
 <div id="map"></div>
@@ -583,6 +633,15 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
     <div class="rcard-body">
       <div class="strow"><span class="stlbl">Total Features</span><span class="stval" id="st-total">—</span></div>
       <div class="strow"><span class="stlbl">Visible Features</span><span class="stval" id="st-visible">—</span></div>
+      <div style="border-top:1px solid rgba(0,200,255,.07);margin:8px 0 4px"></div>
+      <div class="fstat-grid">
+        <div class="fstat-item"><span class="fstat-lbl">FEEDERS</span><span class="fstat-val" id="st-feeders">—</span></div>
+        <div class="fstat-item"><span class="fstat-lbl">POLES</span><span class="fstat-val pole" id="st-poles">—</span></div>
+        <div class="fstat-item"><span class="fstat-lbl">TOTAL LENGTH</span><span class="fstat-val" id="st-len-total">—</span></div>
+        <div class="fstat-item"><span class="fstat-lbl">UG LENGTH</span><span class="fstat-val ug" id="st-len-ug">—</span></div>
+        <div class="fstat-item"><span class="fstat-lbl">OH LENGTH</span><span class="fstat-val oh" id="st-len-oh">—</span></div>
+        <div class="fstat-item"><span class="fstat-lbl">AB SWITCHES</span><span class="fstat-val" id="st-ab-cnt">—</span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -920,6 +979,17 @@ function popup(feat,regEntry){
   return `${headerId}<table class="popup-table">${rows}</table>${statusBar}`;
 }
 
+function haversineKm(a,b){
+  const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
+  const s=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
+}
+function calcLineLength(layer){
+  try{const lls=layer.getLatLngs();if(!lls||!lls.length)return 0;
+    const pts=Array.isArray(lls[0])?lls.flat():lls;
+    let d=0;for(let i=1;i<pts.length;i++)d+=haversineKm(pts[i-1],pts[i]);return d;}
+  catch(e){return 0;}
+}
 function updateCounts(){
   document.getElementById('st-total').textContent=allLayers.length;
   document.getElementById('cnt-ug-lines').textContent=allLayers.filter(i=>i.reg.type==='lines'&&i.cable==='UG').length;
@@ -931,6 +1001,21 @@ function updateCounts(){
   document.getElementById('cnt-ss33').textContent=allLayers.filter(i=>i.reg.type.startsWith('ss33')).length;
   document.getElementById('cnt-ehts').textContent=allLayers.filter(i=>i.reg.type.startsWith('eht')).length;
   document.getElementById('cnt-fsegs').textContent=allLayers.filter(i=>i.reg.type.startsWith('fseg')).length;
+  // Feeder statistics
+  let ugKm=0,ohKm=0,poles=0,abCnt=0;
+  allLayers.forEach(i=>{
+    if(i._deleted)return;
+    if(i.reg.type==='lines'){const km=calcLineLength(i.layer);if(i.cable==='UG')ugKm+=km;else ohKm+=km;}
+    if(i.reg.type==='points'||i.reg.type==='fpoles')poles++;
+    if(i.reg.type==='ab')abCnt++;
+  });
+  const totalKm=ugKm+ohKm;
+  document.getElementById('st-feeders').textContent=feederNames.size;
+  document.getElementById('st-poles').textContent=poles;
+  document.getElementById('st-len-total').textContent=totalKm.toFixed(2)+' km';
+  document.getElementById('st-len-ug').textContent=ugKm.toFixed(2)+' km';
+  document.getElementById('st-len-oh').textContent=ohKm.toFixed(2)+' km';
+  document.getElementById('st-ab-cnt').textContent=abCnt;
 }
 
 // Auto-fit bounds
@@ -1064,6 +1149,7 @@ function buildFeederChecks(){
           <div style="width:9px;height:9px;border-radius:2px;background:${color};flex-shrink:0;border:1px solid rgba(255,255,255,.18)"></div>
           <span class="focus-txt" style="font-family:var(--sans);font-size:11px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;min-width:0" title="${fn}" onclick="focusFeeder('${fe}')">${short}</span>
           <span style="font-size:10px;cursor:pointer;padding:1px 5px;border-radius:4px;border:1px solid rgba(0,200,255,.25);color:rgba(0,200,255,.6);background:rgba(0,200,255,.07);font-family:var(--mono);letter-spacing:.5px;flex-shrink:0;transition:.2s" title="Edit Mode" onclick="quickEditMode('${fe}',event)">✏️</span>
+          <span class="fn-del-btn" title="Delete feeder from map" onclick="deleteFeederFromMap('${fe}',event)">🗑</span>
           <div class="tog" id="ftog-${idx}" style="flex-shrink:0" onclick="toggleSingleFeeder('${fe}',${idx},event)"></div>
         </div>
         <div style="display:flex;gap:3px;padding-left:15px;margin-top:2px;width:100%">
@@ -1592,6 +1678,140 @@ function syncLabels(){
 }
 map.on('zoomend',syncLabels);
 document.getElementById('loader').addEventListener('click',dismissLoader);
+
+// ══════════════════════════════════════════════════
+// CSV / XLSX UPLOAD ENGINE
+// ══════════════════════════════════════════════════
+const uploadedFiles={};
+
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(Boolean);
+  if(!lines.length)return[];
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).map(line=>{
+    const vals=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){inQ=!inQ;}
+      else if(c===','&&!inQ){vals.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    vals.push(cur.trim());
+    const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');
+    return obj;
+  }).filter(r=>r.latitude&&r.longitude&&!isNaN(parseFloat(r.latitude)));
+}
+
+function handleFileUpload(input){
+  const file=input.files[0];if(!file)return;
+  input.value='';
+  const reader=new FileReader();
+  const isXLSX=/\.xlsx?$/i.test(file.name);
+  reader.onload=function(e){
+    let rows=[];
+    if(isXLSX){
+      try{
+        const wb=XLSX.read(e.target.result,{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+        rows=rows.map(r=>{const out={};Object.keys(r).forEach(k=>out[k.trim()]=String(r[k]??'').trim());return out;})
+          .filter(r=>{const lat=parseFloat(r.latitude||r.Latitude);const lng=parseFloat(r.longitude||r.Longitude);return !isNaN(lat)&&!isNaN(lng);});
+      }catch(err){toast('XLSX parse error: '+err.message,3500);return;}
+    }else{
+      rows=parseCSV(e.target.result);
+    }
+    if(!rows.length){toast('No valid rows found in file',3000);return;}
+    const fn=rows[0].feeder_name||rows[0]['Feeder Name']||rows[0]['feeder name']||file.name.replace(/\.[^.]+$/,'');
+    const key=file.name;
+    uploadedFiles[key]={feederName:fn,rows,fileName:file.name};
+    const sel=document.getElementById('dfFileSelect');
+    let opt=sel.querySelector('option[value="'+CSS.escape(key)+'"]');
+    if(!opt){opt=document.createElement('option');opt.value=key;sel.appendChild(opt);}
+    opt.textContent=file.name+' ('+fn.substring(0,20)+')';
+    sel.value=key;
+    toast('Loaded: '+file.name+' — '+rows.length+' rows, feeder: '+fn.substring(0,25),3500);
+  };
+  if(isXLSX)reader.readAsArrayBuffer(file);
+  else reader.readAsText(file);
+}
+
+function runUploadedFeeder(){
+  const sel=document.getElementById('dfFileSelect');
+  const key=sel.value;
+  if(!key||!uploadedFiles[key]){toast('Select an uploaded file first');return;}
+  const {feederName,rows}=uploadedFiles[key];
+  removeFeederLayers(feederName);
+  let added=0;
+  rows.forEach((row,idx)=>{
+    const lat=parseFloat(row.latitude||row.Latitude||row.lat);
+    const lng=parseFloat(row.longitude||row.Longitude||row.lon);
+    if(isNaN(lat)||isNaN(lng))return;
+    const typeRaw=String(row.type_of_feeder||row['Type of Feeder']||row.type_of_cable_point||row['Type of Cable Point']||'').toUpperCase();
+    const isOH=typeRaw==='OH'||typeRaw==='OVERHEAD';
+    const cableType=isOH?'OH':'UG';
+    const poleNo=row.pole_number||row['Pole Number']||String(idx+1);
+    const props={
+      'Feeder Name':feederName,'Pole Number':poleNo,
+      'Cut Point':row.cut_point||row['Cut Point']||'',
+      'Type of Pole':row.type_of_pole||row['Type of Pole']||'',
+      'Pole Feeding to':row.pole_feeding_to||row['Pole Feeding to']||'',
+      'Type of Cable Point':row.type_of_cable_point||row['Type of Cable Point']||'',
+      'Type of Feeder':typeRaw||'UG',
+      'Nature of Feeder':row.nature_of_feeder||row['Nature of Feeder']||'',
+      'Section':row.section||row['Section']||'',
+      'Sub Division':row.sub_division||row['Sub Division']||'',
+      'Division':row.division||row['Division']||'',
+    };
+    const feat={type:'Feature',geometry:{type:'Point',coordinates:[lng,lat]},properties:props};
+    const reg={type:'points',feeder:feederName,cable:cableType};
+    const layer=L.circleMarker([lat,lng],{radius:4,fillColor:'#ffffff',fillOpacity:1,color:isOH?'#f44336':'#2196f3',weight:2,pane:'pointsPane'});
+    layer.feature=feat;layer._editId=editLayerCounter++;
+    layer.bindPopup(popup(feat,reg),{maxWidth:340,minWidth:260});
+    layer.on('click',function(e){L.DomEvent.stopPropagation(e);layer.openPopup(e.latlng||layer.getLatLng());});
+    const poleNoStr=(poleNo&&String(poleNo).length<10)?String(poleNo):null;
+    allLayers.push({layer,reg,feederName,cable:cableType,poleNo:poleNoStr});
+    if(!feederLayerMap[feederName])feederLayerMap[feederName]=[];
+    feederLayerMap[feederName].push({layer,reg,cable:cableType});
+    feederNames.add(feederName);feederState[feederName]=true;added++;
+  });
+  updateVisibility();buildFeederChecks();updateCounts();
+  toast('✅ Applied: '+feederName.substring(0,25)+' — '+added+' points loaded',3500);
+  const pts=allLayers.filter(i=>i.feederName===feederName&&i.layer.getLatLng);
+  if(pts.length){map.flyToBounds(L.latLngBounds(pts.map(i=>i.layer.getLatLng())),{padding:[60,60],maxZoom:17,animate:true,duration:.7});}
+}
+
+function removeFeederLayers(fn){
+  const toRemove=allLayers.filter(i=>i.feederName===fn);
+  toRemove.forEach(i=>{
+    if(map.hasLayer(i.layer))map.removeLayer(i.layer);
+    if(i.layer.flowLayer&&map.hasLayer(i.layer.flowLayer))map.removeLayer(i.layer.flowLayer);
+    i._deleted=true;
+  });
+  for(let i=allLayers.length-1;i>=0;i--){if(allLayers[i].feederName===fn)allLayers.splice(i,1);}
+  delete feederLayerMap[fn];
+}
+
+function deleteUploadedFeeder(){
+  const sel=document.getElementById('dfFileSelect');
+  const key=sel.value;
+  if(!key||!uploadedFiles[key]){toast('Select a file to delete');return;}
+  const {feederName}=uploadedFiles[key];
+  if(!confirm('Delete feeder "'+feederName+'" from map?'))return;
+  removeFeederLayers(feederName);
+  feederNames.delete(feederName);delete feederState[feederName];delete uploadedFiles[key];
+  sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
+  sel.value='';buildFeederChecks();updateCounts();
+  toast('🗑 Deleted: '+feederName.substring(0,25),2500);
+}
+
+function deleteFeederFromMap(fn,e){
+  if(e)e.stopPropagation();
+  if(!confirm('Delete feeder "'+fn+'" from map?'))return;
+  if(focusedFeeder===fn)exitFocusedFeeder();
+  removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];
+  buildFeederChecks();updateCounts();
+  toast('🗑 Deleted: '+fn.substring(0,25),2500);
+}
 </script>
 </body>
 </html>
