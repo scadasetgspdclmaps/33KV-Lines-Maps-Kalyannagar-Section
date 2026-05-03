@@ -446,6 +446,41 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 .et-exit{background:rgba(255,255,255,.05);color:rgba(176,204,224,.45);border:1px solid rgba(255,255,255,.1)}
 .et-exit:hover{color:#fff;background:rgba(255,255,255,.1)}
 
+
+/* ══ FEEDER STATS CARD (appears below floating toolbar when feeder focused) ══ */
+#feederStatsCard{
+  position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:954;
+  background:rgba(8,18,30,.97);border:1px solid rgba(0,200,255,.25);border-radius:16px;
+  padding:12px 18px;display:none;flex-direction:column;gap:8px;
+  backdrop-filter:blur(22px);box-shadow:0 4px 28px rgba(0,0,0,.6);
+  min-width:420px;max-width:600px}
+#feederStatsCard.visible{display:flex}
+.fsc-title{font-family:var(--mono);font-size:9px;color:rgba(0,200,255,.55);
+  letter-spacing:2px;margin-bottom:2px}
+.fsc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.fsc-item{background:rgba(0,200,255,.05);border:1px solid rgba(0,200,255,.1);
+  border-radius:8px;padding:7px 10px;display:flex;flex-direction:column;gap:3px}
+.fsc-lbl{font-family:var(--mono);font-size:7px;color:rgba(0,200,255,.45);letter-spacing:1px}
+.fsc-val{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--live)}
+.fsc-val.ug{color:#2196f3}.fsc-val.oh{color:#e91e8c}.fsc-val.tr{color:#9c27b0}
+.fsc-val.pole{color:#ff9800}.fsc-val.ab{color:#ffeb3b}.fsc-val.cut{color:#78909c}
+
+/* ══ SEGMENT DISTANCE TOOLTIP ══ */
+.seg-dist-popup .leaflet-popup-content-wrapper{
+  background:rgba(8,18,30,.96)!important;color:var(--text)!important;
+  border:1px solid rgba(0,200,255,.3)!important;border-radius:10px!important;
+  box-shadow:0 4px 20px rgba(0,0,0,.6)!important}
+.seg-dist-popup .leaflet-popup-content{margin:10px 14px!important;min-width:200px}
+.seg-dist-popup .leaflet-popup-close-button{color:rgba(176,204,224,.4)!important}
+.sdp-title{font-family:var(--mono);font-size:9px;color:rgba(0,200,255,.5);
+  letter-spacing:1.5px;margin-bottom:8px}
+.sdp-row{display:flex;justify-content:space-between;align-items:center;
+  padding:4px 0;border-bottom:1px solid rgba(0,200,255,.06)}
+.sdp-row:last-child{border:none}
+.sdp-lbl{font-family:var(--sans);font-size:11px;color:rgba(176,204,224,.5)}
+.sdp-val{font-family:var(--mono);font-size:12px;color:var(--live);font-weight:600}
+.sdp-val.oh{color:#e91e8c}.sdp-val.ug{color:#2196f3}.sdp-val.tr{color:#9c27b0}
+
 /* ══ EDIT MODE marker highlight ══ */
 .edit-mode-point{filter:drop-shadow(0 0 7px rgba(0,200,255,.9))!important;cursor:crosshair!important;transition:filter .2s}
 
@@ -556,6 +591,12 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 </div>
 
 <div id="toast"></div>
+
+<!-- ══ FEEDER STATS CARD ══ -->
+<div id="feederStatsCard">
+  <div class="fsc-title">// FEEDER STATISTICS</div>
+  <div class="fsc-grid" id="fscGrid"></div>
+</div>
 
 <!-- ══ PICK ON MAP BANNER ══ -->
 <div id="pickBanner">📍 Click on map to place point — Esc to cancel</div>
@@ -1130,6 +1171,8 @@ function focusFeeder(fn){
   const lbl=document.getElementById('etFeederLabel');
   if(lbl)lbl.textContent=fn.split('→')[1]?.trim()||fn;
   tb.classList.add('visible');
+  showFeederStats(fn);
+  attachSegmentDistanceClick(fn);
   toast(`Focused: ${fn.split('→')[1]?.trim()||fn}`);
 }
 
@@ -1617,6 +1660,7 @@ function exitFocusedFeeder(){
     }else if(i.layer.setOpacity)i.layer.setOpacity(1);
   });
   document.getElementById('editToolbar').classList.remove('visible');
+  hideFeederStats();
   toast('Focus cleared');
 }
 
@@ -1736,6 +1780,118 @@ function syncLabels(){
   });
   document.getElementById('zoomLvl').textContent=z;
 }
+
+// ══════════════════════════════════════════════════
+// FEEDER STATS CARD
+// ══════════════════════════════════════════════════
+function calcFeederStats(fn){
+  const items=allLayers.filter(i=>i.feederName===fn&&!i._deleted);
+  let ugKm=0,ohKm=0,trKm=0,poles=0,abCnt=0,dpCnt=0,cutCnt=0;
+  items.forEach(i=>{
+    if(i.reg.type==='lines'||i.reg.type==='fsegs'){
+      const km=calcLineLength(i.layer);
+      if(i.cable==='OH')ohKm+=km;
+      else if(i.cable==='-')trKm+=km;
+      else ugKm+=km;
+    }
+    if(i.reg.type==='points'||i.reg.type==='fpoles')poles++;
+    if(i.reg.type==='ab')abCnt++;
+    if(i.reg.type==='dp')dpCnt++;
+    if(i.reg.type==='cut')cutCnt++;
+  });
+  return{ugKm,ohKm,trKm,totalKm:ugKm+ohKm+trKm,poles,abCnt,dpCnt,cutCnt};
+}
+
+function showFeederStats(fn){
+  const s=calcFeederStats(fn);
+  const card=document.getElementById('feederStatsCard');
+  const grid=document.getElementById('fscGrid');
+  if(!card||!grid)return;
+  const items=[
+    {lbl:'POLES / POINTS',val:s.poles,cls:'pole'},
+    {lbl:'TOTAL LENGTH',val:s.totalKm.toFixed(3)+' km',cls:''},
+    {lbl:'UG LENGTH',val:s.ugKm.toFixed(3)+' km',cls:'ug'},
+    {lbl:'OH LENGTH',val:s.ohKm.toFixed(3)+' km',cls:'oh'},
+    {lbl:'TRANS LENGTH',val:s.trKm.toFixed(3)+' km',cls:'tr'},
+    {lbl:'AB SWITCHES',val:s.abCnt,cls:'ab'},
+    {lbl:'DP STRUCTURES',val:s.dpCnt,cls:''},
+    {lbl:'CUT POINTS',val:s.cutCnt,cls:'cut'},
+  ];
+  grid.innerHTML=items.map(it=>`
+    <div class="fsc-item">
+      <span class="fsc-lbl">${it.lbl}</span>
+      <span class="fsc-val ${it.cls}">${it.val}</span>
+    </div>`).join('');
+  card.classList.add('visible');
+}
+
+function hideFeederStats(){
+  const card=document.getElementById('feederStatsCard');
+  if(card)card.classList.remove('visible');
+}
+
+// ══════════════════════════════════════════════════
+// SEGMENT DISTANCE POPUP (click between poles)
+// ══════════════════════════════════════════════════
+// Finds the two nearest poles to a clicked latlng along a feeder
+function nearestPolesOnFeeder(feederName, clickLL){
+  const pts=allLayers.filter(i=>
+    i.feederName===feederName &&
+    ['points','ab','dp','cut','fpoles'].includes(i.reg.type) &&
+    !i._deleted && i.layer.getLatLng
+  );
+  if(pts.length<2)return null;
+  // Sort by distance to click point
+  const sorted=[...pts].sort((a,b)=>{
+    const da=a.layer.getLatLng().distanceTo(clickLL);
+    const db=b.layer.getLatLng().distanceTo(clickLL);
+    return da-db;
+  });
+  const p1=sorted[0].layer.getLatLng();
+  const p2=sorted[1].layer.getLatLng();
+  const dist=haversineKm(p1,p2)*1000; // metres
+  const p1props=sorted[0].layer.feature?.properties||{};
+  const p2props=sorted[1].layer.feature?.properties||{};
+  return{
+    p1:{ll:p1,poleNo:p1props['Pole Number']||'—',type:p1props['Type of Feeder']||'—'},
+    p2:{ll:p2,poleNo:p2props['Pole Number']||'—',type:p2props['Type of Feeder']||'—'},
+    distM:dist,distKm:dist/1000
+  };
+}
+
+// Attach segment distance click to all line layers of a feeder
+function attachSegmentDistanceClick(feederName){
+  allLayers.forEach(item=>{
+    if(item.feederName!==feederName)return;
+    if(item.reg.type!=='lines'&&item.reg.type!=='fsegs')return;
+    item.layer.off('click'); // remove old
+    item.layer.on('click',function(e){
+      L.DomEvent.stopPropagation(e);
+      const info=nearestPolesOnFeeder(feederName,e.latlng);
+      if(!info){item.layer.openPopup(e.latlng);return;}
+      const typeClass=()=>{
+        const t=String(info.p1.type||'').toUpperCase().replace(/\s/g,'');
+        if(t.includes('UGTOH')||t.includes('OHTUG')||t==='TRANS')return'tr';
+        if(t==='OH')return'oh';
+        return'ug';
+      };
+      const tc=typeClass();
+      const distStr=info.distM>=1000
+        ?info.distKm.toFixed(3)+' km'
+        :Math.round(info.distM)+' m';
+      const html=`
+        <div class="sdp-title">// SEGMENT INFO</div>
+        <div class="sdp-row"><span class="sdp-lbl">From Pole</span><span class="sdp-val">${info.p1.poleNo}</span></div>
+        <div class="sdp-row"><span class="sdp-lbl">To Pole</span><span class="sdp-val">${info.p2.poleNo}</span></div>
+        <div class="sdp-row"><span class="sdp-lbl">Segment Distance</span><span class="sdp-val">${distStr}</span></div>
+        <div class="sdp-row"><span class="sdp-lbl">Cable Type</span><span class="sdp-val ${tc}">${info.p1.type||'—'}</span></div>
+        <div class="sdp-row"><span class="sdp-lbl">Feeder</span><span class="sdp-val" style="font-size:10px">${feederName.split('→')[1]?.trim()||feederName}</span></div>`;
+      L.popup({className:'seg-dist-popup',maxWidth:260,minWidth:210,autoPanPadding:[30,30]})
+        .setLatLng(e.latlng).setContent(html).openOn(map);
+    });
+  });
+}
+
 map.on('zoomend',syncLabels);
 document.getElementById('loader').addEventListener('click',dismissLoader);
 
@@ -1983,6 +2139,7 @@ function renderUploadedRows(rows,sourceFileName){
   });
 
   updateVisibility();buildFeederChecks();updateCounts();buildDropdownOptions();
+  allRenderedFeeders.forEach(f=>attachSegmentDistanceClick(f.feederName));
 
   const totalPts=allRenderedFeeders.reduce((s,f)=>s+f.points,0);
   const fnNames=allRenderedFeeders.map(f=>f.feederName.split('→')[1]?.trim()||f.feederName).join(', ');
