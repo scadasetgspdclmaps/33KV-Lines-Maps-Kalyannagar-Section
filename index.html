@@ -101,7 +101,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --navy:#0d1b2a;--panel:#0f2236ee;--live:#00c8ff;--ug:#2196f3;--oh:#e91e8c;
+  --navy:#0d1b2a;--panel:#0f2236ee;--live:#00c8ff;--ug:#2196f3;--oh:#ff9800;
   --ab:#ff9800;--dp:#9c27b0;--cut:#78909c;--fault:#ff1744;--trip:#ffab00;
   --ok:#00e676;--border:rgba(0,200,255,0.18);--text:#b0cce0;
   --mono:'Share Tech Mono',monospace;--sans:'Arial',sans-serif;
@@ -465,6 +465,17 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 .fsc-val.ug{color:#2196f3}.fsc-val.oh{color:#e91e8c}.fsc-val.tr{color:#9c27b0}
 .fsc-val.pole{color:#ff9800}.fsc-val.ab{color:#ffeb3b}.fsc-val.cut{color:#78909c}
 
+
+/* ══ STATS DOWNLOAD BTN ══ */
+.stats-dl-btn{width:100%;margin-top:8px;padding:7px;border:none;border-radius:8px;cursor:pointer;
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;font-weight:600;
+  background:rgba(0,230,118,.12);color:#00e676;border:1px solid rgba(0,230,118,.25);transition:.2s}
+.stats-dl-btn:hover{background:rgba(0,230,118,.25);color:#fff}
+.fsc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.fsc-close{cursor:pointer;color:rgba(176,204,224,.4);font-size:14px;padding:0 4px;
+  border-radius:4px;transition:.2s}
+.fsc-close:hover{color:#fff;background:rgba(255,255,255,.1)}
+
 /* ══ SEGMENT DISTANCE TOOLTIP ══ */
 .seg-dist-popup .leaflet-popup-content-wrapper{
   background:rgba(8,18,30,.96)!important;color:var(--text)!important;
@@ -583,18 +594,22 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 <div id="legend">
   <div class="leg"><div class="leg-l" style="background:#2196f3;box-shadow:0 0 4px #2196f3"></div>UG</div>
-  <div class="leg"><div class="leg-l" style="background:#e91e8c;box-shadow:0 0 4px #e91e8c"></div>OH</div>
+  <div class="leg"><div class="leg-l" style="background:#ff9800;box-shadow:0 0 4px #ff9800"></div>OH</div>
   <div class="leg"><div class="leg-l" style="background:#9c27b0;box-shadow:0 0 4px #9c27b0"></div>TRANS</div>
   <div class="leg"><div class="leg-d" style="background:white;border:2px solid #2196f3"></div>POINT</div>
-  <div class="leg"><div class="leg-d" style="background:yellow;border:2px solid black"></div>DP / AB SW</div>
-  <div class="leg"><div class="leg-d" style="background:white;border:2px solid black"></div>CUT</div>
+  <div class="leg"><svg width="16" height="10"><ellipse cx="8" cy="5" rx="7" ry="4" fill="#ffeb3b" stroke="#333" stroke-width="1.5"/></svg> AB SW</div>
+  <div class="leg"><svg width="11" height="11"><rect width="11" height="11" rx="2" fill="#ffeb3b" stroke="#333" stroke-width="1.5"/></svg> DP</div>
+  <div class="leg"><svg width="13" height="13" viewBox="0 0 14 14"><polygon points="7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5" fill="#ffeb3b" stroke="#333" stroke-width="1"/></svg> CUT</div>
 </div>
 
 <div id="toast"></div>
 
 <!-- ══ FEEDER STATS CARD ══ -->
 <div id="feederStatsCard">
-  <div class="fsc-title">// FEEDER STATISTICS</div>
+  <div class="fsc-header">
+    <div class="fsc-title">// FEEDER STATISTICS — <span id="fscFeederName" style="color:var(--live)"></span></div>
+    <span class="fsc-close" onclick="hideFeederStats()" title="Close">✕</span>
+  </div>
   <div class="fsc-grid" id="fscGrid"></div>
 </div>
 
@@ -649,7 +664,7 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
     <div class="rcard-hd" onclick="toggleRcard('rc-layers')"><span class="rcard-title">// LAYER TYPES</span><span class="rcard-arrow">▾</span></div>
     <div class="rcard-body">
       <div class="lrow" id="lyr-ug-lines" onclick="toggleLyr('ug-lines')"><div class="lswatch" style="background:#2196f3;box-shadow:0 0 5px #2196f3"></div><div class="lname">UG Lines</div><div class="lcnt" id="cnt-ug-lines">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-oh-lines" onclick="toggleLyr('oh-lines')"><div class="lswatch" style="background:#e91e8c;box-shadow:0 0 5px #e91e8c"></div><div class="lname">OH Lines</div><div class="lcnt" id="cnt-oh-lines">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-oh-lines" onclick="toggleLyr('oh-lines')"><div class="lswatch" style="background:#e91e8c;box-shadow:0 0 5px #ff9800"></div><div class="lname">OH Lines</div><div class="lcnt" id="cnt-oh-lines">—</div><div class="tog"></div></div>
       <div class="lrow" id="lyr-points"   onclick="toggleLyr('points')"><div class="lswatch dot" style="background:#0d1b2a;border-color:#00c8ff"></div><div class="lname">Cable Points</div><div class="lcnt" id="cnt-points">—</div><div class="tog"></div></div>
       <div class="lrow" id="lyr-dp"       onclick="toggleLyr('dp')"><div class="lswatch dot" style="background:#1a0033;border-color:#9c27b0"></div><div class="lname">DP Structures</div><div class="lcnt" id="cnt-dp">—</div><div class="tog"></div></div>
       <div class="lrow" id="lyr-ab"       onclick="toggleLyr('ab')"><div class="lswatch dot" style="background:#1a0a00;border-color:#ff9800"></div><div class="lname">AB Switches</div><div class="lcnt" id="cnt-ab">—</div><div class="tog"></div></div>
@@ -674,6 +689,7 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
     <div class="rcard-body">
       <div class="strow"><span class="stlbl">Total Features</span><span class="stval" id="st-total">—</span></div>
       <div class="strow"><span class="stlbl">Visible Features</span><span class="stval" id="st-visible">—</span></div>
+      <button class="stats-dl-btn" onclick="downloadAllFeederStats()">⬇️ DOWNLOAD ALL FEEDER STATS (.xlsx)</button>
       <div style="border-top:1px solid rgba(0,200,255,.07);margin:8px 0 4px"></div>
       <div class="fstat-grid">
         <div class="fstat-item"><span class="fstat-lbl">FEEDERS</span><span class="fstat-val" id="st-feeders">—</span></div>
@@ -763,6 +779,8 @@ let cableFilter='all';
 let globalFeederFallback=true;
 let focusedFeeder=null;
 let editLayerCounter=0;
+// Shared canvas renderer for all circle markers (major perf boost)
+const _CR=L.canvas({padding:0.5,tolerance:3});
 
 // ══════════════════════════════════════════════════
 // STATIC SS / EHT DATA (always visible, embedded from CSV)
@@ -774,7 +792,7 @@ const staticSSLayers = [];  // separate array so never cleared by feeder uploads
 function cableColor(typeRaw,isOH){
   const t=String(typeRaw||'').toUpperCase().replace(/[\s_]/g,'');
   if(t.includes('UGTOH')||t.includes('OHTUG')||t==='TRANSITION'||t==='TRANS')return'#9c27b0';
-  if(isOH||t==='OH'||t==='OVERHEAD')return'#e91e8c';
+  if(isOH||t==='OH'||t==='OVERHEAD')return'#ff9800';
   return'#2196f3';
 }
 
@@ -969,11 +987,13 @@ DATA_REGISTRY.forEach(reg=>{
       const coords=feat.geometry.type==='Point'?feat.geometry.coordinates:feat.geometry.coordinates[0];
       const ll=[coords[1],coords[0]];
       if(reg.type==='points'||reg.type==='fpoles'){
-        layer=L.circleMarker(ll,{radius:4,fillColor:'#ffffff',fillOpacity:1,color:cableColor(cableType,isOH),weight:2,pane:'pointsPane'});
+        layer=L.circleMarker(ll,{radius:4,fillColor:'#ffffff',fillOpacity:1,color:cableColor(cableType,isOH),weight:2,pane:'pointsPane',renderer:_CR});
       }else if(reg.type==='cut'){
-        layer=L.circleMarker(ll,{radius:4,fillColor:'#ffffff',fillOpacity:1,color:'#000000',weight:2,pane:'pointsPane'});
+        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><polygon points='7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5' fill='#ffeb3b' stroke='#333' stroke-width='1'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
+      regType='cut';
       }else if(reg.type==='ab'||reg.type==='dp'){
-        layer=L.marker(ll,{icon:mkIcon('#ffff00','#000000','square'),pane:'pointsPane'});
+        const isAB=(reg.type==='ab');
+        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='10'><ellipse cx='8' cy='5' rx='7' ry='4' fill='#ffeb3b' stroke='#333' stroke-width='1.5'/></svg>`,iconSize:[16,10],iconAnchor:[8,5]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13'><rect width='13' height='13' rx='2' fill='#ffeb3b' stroke='#333' stroke-width='2'/></svg>`,iconSize:[13,13],iconAnchor:[6,6]}),pane:'pointsPane'});
       }else if(reg.type.startsWith('ss33')){
         const h=`<div class="ss33-wrap"><div class="ss33-ring"></div><div class="ss33-core"><span class="ss33-bolt">⚡</span></div></div>`;
         layer=L.marker(ll,{zIndexOffset:1000,icon:L.divIcon({className:'',html:h,iconSize:[36,36],iconAnchor:[18,18]})});
@@ -1252,6 +1272,7 @@ function buildFeederChecks(){
           <div style="width:9px;height:9px;border-radius:2px;background:${color};flex-shrink:0;border:1px solid rgba(255,255,255,.18)"></div>
           <span class="focus-txt" style="font-family:var(--sans);font-size:11px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;min-width:0" title="${fn}" onclick="focusFeeder('${fe}')">${short}</span>
           <span style="font-size:10px;cursor:pointer;padding:1px 5px;border-radius:4px;border:1px solid rgba(0,200,255,.25);color:rgba(0,200,255,.6);background:rgba(0,200,255,.07);font-family:var(--mono);letter-spacing:.5px;flex-shrink:0;transition:.2s" title="Edit Mode" onclick="quickEditMode('${fe}',event)">✏️</span>
+          <span style="font-size:10px;cursor:pointer;padding:1px 5px;border-radius:4px;border:1px solid rgba(0,230,118,.25);color:rgba(0,230,118,.6);background:rgba(0,230,118,.07);font-family:var(--mono);flex-shrink:0;transition:.2s" title="Feeder Statistics" onclick="toggleFeederStatsByName('${fe}',event)">📊</span>
           <span class="fn-del-btn" title="Delete feeder from map" onclick="deleteFeederFromMap('${fe}',event)">🗑</span>
           <div class="tog" id="ftog-${idx}" style="flex-shrink:0" onclick="toggleSingleFeeder('${fe}',${idx},event)"></div>
         </div>
@@ -1471,9 +1492,11 @@ function toggleEditMode(){
     item.layer.off('click');
     if(editModeActive){
       if(el)el.classList.add('edit-mode-point');
+      else if(item.layer.setStyle)item.layer.setStyle({fillColor:'#00c8ff',radius:6,weight:3});
       item.layer.on('click',function(e){L.DomEvent.stopPropagation(e);openEditPanel(item);});
     }else{
       if(el)el.classList.remove('edit-mode-point');
+      else if(item.layer.setStyle)item.layer.setStyle({fillColor:'#ffffff',radius:4,weight:2});
       item.layer.on('click',function(e){L.DomEvent.stopPropagation(e);item.layer.openPopup(e.latlng||item.layer.getLatLng());});
     }
   });
@@ -1761,6 +1784,7 @@ function dismissLoader(){
 
 setTimeout(()=>{
   dismissLoader();renderStaticSS();buildFeederChecks();updateCounts();buildDropdownOptions();
+  feederNames.forEach(fn=>attachSegmentDistanceClick(fn));
   (window.requestIdleCallback||setTimeout)(()=>{requestVisibilityUpdate();syncLabels();},{timeout:500});
   toast('Kalyannagar 33KV section loaded — '+allLayers.length+' features',3000);
 },600);
@@ -1822,6 +1846,8 @@ function showFeederStats(fn){
       <span class="fsc-lbl">${it.lbl}</span>
       <span class="fsc-val ${it.cls}">${it.val}</span>
     </div>`).join('');
+  const nameEl=document.getElementById('fscFeederName');
+  if(nameEl)nameEl.textContent=fn.split('→')[1]?.trim()||fn;
   card.classList.add('visible');
 }
 
@@ -1890,6 +1916,48 @@ function attachSegmentDistanceClick(feederName){
         .setLatLng(e.latlng).setContent(html).openOn(map);
     });
   });
+}
+
+
+// Toggle stats card from 📊 panel icon
+function toggleFeederStatsByName(fn,e){
+  if(e)e.stopPropagation();
+  const card=document.getElementById('feederStatsCard');
+  const nameEl=document.getElementById('fscFeederName');
+  if(card.classList.contains('visible')&&nameEl&&nameEl.textContent===(fn.split('→')[1]?.trim()||fn)){
+    hideFeederStats();
+  }else{
+    showFeederStats(fn);
+    attachSegmentDistanceClick(fn);
+  }
+}
+
+// Download ALL feeders stats as Excel
+function downloadAllFeederStats(){
+  if(typeof XLSX==='undefined'){toast('SheetJS not loaded',2000);return;}
+  const rows=[];
+  [...feederNames].sort().forEach(fn=>{
+    const s=calcFeederStats(fn);
+    rows.push({
+      'Feeder Name': fn,
+      'Poles / Points': s.poles,
+      'Total Length (km)': parseFloat(s.totalKm.toFixed(3)),
+      'UG Length (km)': parseFloat(s.ugKm.toFixed(3)),
+      'OH Length (km)': parseFloat(s.ohKm.toFixed(3)),
+      'Trans Length (km)': parseFloat(s.trKm.toFixed(3)),
+      'AB Switches': s.abCnt,
+      'DP Structures': s.dpCnt,
+      'Cut Points': s.cutCnt,
+    });
+  });
+  if(!rows.length){toast('No feeder data to export',2000);return;}
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  // Column widths
+  ws['!cols']=[{wch:45},{wch:14},{wch:16},{wch:14},{wch:14},{wch:16},{wch:12},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,'Feeder Stats');
+  XLSX.writeFile(wb,'Section_Feeder_Stats.xlsx');
+  toast('📥 Downloaded feeder stats Excel',2500);
 }
 
 map.on('zoomend',syncLabels);
@@ -1972,7 +2040,7 @@ function _drawSegment(feederName, coords, typeRaw, regLine){
   const t=String(typeRaw||'').toUpperCase().replace(/[\s_]/g,'');
   const isTrans=t.includes('UGTOH')||t.includes('OHTUG')||t==='TRANSITION'||t==='TRANS';
   const isOH=!isTrans&&(t==='OH'||t==='OVERHEAD');
-  const color=isTrans?'#9c27b0':isOH?'#e91e8c':'#2196f3';
+  const color=isTrans?'#9c27b0':isOH?'#ff9800':'#2196f3';
   const cable=isTrans?'-':isOH?'OH':'UG';
 
   const cStatus=feederStatus[feederName]||'live';
@@ -2119,11 +2187,11 @@ function renderUploadedRows(rows,sourceFileName){
           iconSize:[13,13],iconAnchor:[6,6]}),pane:'pointsPane'});
       }else if(isCut){
         regType='cut';
-        layer=L.circleMarker([p.lat,p.lng],{radius:4,fillColor:'#ffffff',fillOpacity:1,color:'#000000',weight:2,pane:'pointsPane'});
+        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><polygon points='7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5' fill='#ffeb3b' stroke='#333' stroke-width='1'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
       }else if(p.pn.spur){
-        layer=L.circleMarker([p.lat,p.lng],{radius:3.5,fillColor:'#ffe082',fillOpacity:1,color:ptColor,weight:2,pane:'pointsPane'});
+        layer=L.circleMarker([p.lat,p.lng],{radius:3.5,fillColor:'#ffe082',fillOpacity:1,color:ptColor,weight:2,pane:'pointsPane',renderer:_CR});
       }else{
-        layer=L.circleMarker([p.lat,p.lng],{radius:4,fillColor:'#ffffff',fillOpacity:1,color:ptColor,weight:2,pane:'pointsPane'});
+        layer=L.circleMarker([p.lat,p.lng],{radius:4,fillColor:'#ffffff',fillOpacity:1,color:ptColor,weight:2,pane:'pointsPane',renderer:_CR});
       }
       const reg={type:regType,feeder:feederName,cable};
       layer.feature=feat;layer._editId=editLayerCounter++;
