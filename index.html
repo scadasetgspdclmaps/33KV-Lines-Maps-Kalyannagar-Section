@@ -732,13 +732,11 @@ const map = L.map('map',{
   doubleClickZoom:true, keyboard:true, keyboardPanDelta:80,
 });
 
-map.createPane('feederHitPane');
-map.getPane('feederHitPane').style.zIndex = 420;
-map.createPane('feederPane');
-map.getPane('feederPane').style.zIndex = 430;
+map.createPane('linePane');
+map.getPane('linePane').style.zIndex = 410;
 map.createPane('flowPane');
 map.getPane('flowPane').style.pointerEvents = 'none';
-map.getPane('flowPane').style.zIndex = 440;
+map.getPane('flowPane').style.zIndex = 430;
 map.createPane('pointsPane');
 map.getPane('pointsPane').style.zIndex = 650;
 
@@ -792,6 +790,7 @@ const feederNames=new Set();
 const feederState={};
 const feederStatus={};
 const feederLayerMap={};
+const feederSectionMap={};
 const LGstate={'ug-lines':true,'oh-lines':true,points:true,dp:true,ab:true,cut:true,ss33:true,ehts:true,fsegs:true};
 let cableFilter='all';
 let globalFeederFallback=true;
@@ -1004,12 +1003,12 @@ DATA_REGISTRY.forEach(reg=>{
         let cStatus=feederStatus[feederName]||'live';
         let customClass=cStatus==='breakdown'?'feeder-breakdown':'';
         layer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
-          {color,weight:5.5,opacity:.92,smoothFactor:1.0,lineCap:'round',lineJoin:'round',className:customClass,pane:'feederPane'});
+          {color,weight:5.5,opacity:.92,smoothFactor:1.0,lineCap:'round',lineJoin:'round',className:customClass});
         let flowClass='feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':'');
         layer.flowLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
-          {color:'#ffffff',weight:2.7,opacity:.92,dashArray:'4 18',className:flowClass,interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
+          {color:'#ffffff',weight:3,className:flowClass,interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
         layer.hitLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
-          {color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false,pane:'feederHitPane'});
+          {color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false});
         bindFeederLinePopup(layer,feat,reg,feederName,cableType);
         layer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:4});});
         layer.on('mouseout',e=>{
@@ -1071,29 +1070,6 @@ function requestVisibilityUpdate(){
   _visRAF=requestAnimationFrame(()=>{_visRAF=null;updateVisibility();});
 }
 
-
-function refreshLayerOrder(){
-  try{
-    allLayers.forEach(item=>{
-      if(item._deleted||!item.layer||!map.hasLayer(item.layer))return;
-      const t=item.reg?.type;
-      if((t==='lines'||(t&&t.startsWith('fseg'))) && item.layer.bringToFront){
-        if(item.cable==='UG')item.layer.bringToBack();
-        if(item.cable==='OH')item.layer.bringToFront();
-      }
-    });
-    allLayers.forEach(item=>{
-      if(item._deleted||!item.layer)return;
-      if(item.layer.flowLayer&&map.hasLayer(item.layer.flowLayer)&&item.layer.flowLayer.bringToFront)item.layer.flowLayer.bringToFront();
-    });
-    allLayers.forEach(item=>{
-      if(item._deleted||!item.layer||!map.hasLayer(item.layer))return;
-      const t=item.reg?.type;
-      if(t&&t!=='lines'&&!t.startsWith('fseg')&&item.layer.bringToFront)item.layer.bringToFront();
-    });
-  }catch(e){console.warn('Layer order refresh failed',e);}
-}
-
 function updateVisibility(){
   let vis=0;
   allLayers.forEach(item=>{
@@ -1126,7 +1102,6 @@ function updateVisibility(){
     }
   });
   document.getElementById('st-visible').textContent=vis;
-  refreshLayerOrder();
   syncLabels();
 }
 
@@ -1323,74 +1298,85 @@ function toggleSingleFeeder(fn,idx,e){
   toast((feederState[fn]?'Showing ':'Hidden ')+fn.substring(0,20));
 }
 
+
+function getFeederSectionName(fn){
+  if(feederSectionMap[fn]) return feederSectionMap[fn];
+
+  const up=String(fn||'').toUpperCase();
+
+  // For existing static feeders: group by source/EHT name.
+  if(up.includes('JUBILEE HILLS')||up.includes('JUBILEEHILLS')) return 'JUBILEE HILLS';
+  if(up.includes('NIMS')) return 'NIMS';
+  if(up.includes('ERRAGADA')||up.includes('ERRAGADDA')) return up.includes('132') ? 'ERRAGADA (132KV)' : 'ERRAGADA (33KV)';
+  if(up.includes('BOWENPALLY')) return 'BOWENPALLY';
+  if(up.includes('ALLWYN')) return 'ALLWYN';
+  if(up.includes('GUNROCK')) return 'GUNROCK';
+  if(up.includes('PATIGADDA')) return 'PATIGADDA';
+
+  // For uploaded CSVs, use first word before separators as a practical section group.
+  const cleaned=String(fn||'OTHER').replace(/\s+/g,' ').trim();
+  const beforeArrow=cleaned.split('→')[0].split('-')[0].split('_')[0].trim();
+  return beforeArrow ? beforeArrow.toUpperCase().substring(0,32) : 'OTHER';
+}
+
+function getSectionFromRows(rows, fallbackName){
+  const r=(rows&&rows[0])||{};
+  const direct=_getRowVal(r,'section','Section','SECTION','Lines Section','lines_section','Section Name');
+  if(direct) return direct.toUpperCase();
+  const sub=_getRowVal(r,'sub_division','Sub Division','Sub-Division','Subdivision','subdivision');
+  if(sub) return sub.toUpperCase();
+  return getFeederSectionName(fallbackName);
+}
+
 function buildFeederChecks(){
   const container=document.getElementById('feederChecks');
-  if(!container)return;container.innerHTML='';
+  if(!container)return;
+  container.innerHTML='';
+
   const FCOLORS=['#00c8ff','#ff9800','#00e676','#9c27b0','#2196f3','#f44336','#ffeb3b','#e91e63','#4caf50','#ff5722','#00bcd4','#cddc39'];
 
-  // GROUP DEFINITIONS — uploaded feeders are grouped section-wise; static feeders remain EHT/source-wise.
-  const BASE_GROUP_ORDER=['ERRAGADA (132KV)','JUBILEE HILLS','NIMS','ERRAGADA (33KV)','OTHER'];
-  const GROUP_COLORS={
-    'ERRAGADA (132KV)': '#00c8ff',
-    'JUBILEE HILLS':    '#ff9800',
-    'NIMS':             '#00e676',
-    'ERRAGADA (33KV)':  '#9c27b0',
-    'OTHER':            '#78909c',
-  };
+  // Dynamic section tree:
+  // Existing feeders are grouped by EHT/source. Uploaded CSVs are grouped by Section column if available.
   const groups={};
-  const dynamicSections=[];
-
-  function feederGroupName(fn){
-    const meta=uploadedFeederMeta[fn];
-    if(meta&&meta.section){
-      const g='SECTION: '+String(meta.section).toUpperCase();
-      if(!GROUP_COLORS[g])GROUP_COLORS[g]='#00c8ff';
-      if(!dynamicSections.includes(g))dynamicSections.push(g);
-      return g;
-    }
-    const up=fn.toUpperCase();
-    if(up.includes('JUBILEE HILLS')||up.includes('JUBILEEHILLS'))return 'JUBILEE HILLS';
-    if(up.includes('NIMS'))return 'NIMS';
-    if(up.startsWith('ERRAGADA')&&!up.includes('132'))return 'ERRAGADA (33KV)';
-    if(up.includes('ERRAGADA'))return 'ERRAGADA (132KV)';
-    return 'OTHER';
-  }
-
   [...feederNames].sort().forEach((fn,i)=>{
-    if(feederState[fn]===undefined)feederState[fn]=true;
-    const grp=feederGroupName(fn);
-    if(!groups[grp])groups[grp]=[];
+    if(feederState[fn]===undefined) feederState[fn]=true;
+    const grp=getFeederSectionName(fn);
+    if(!groups[grp]) groups[grp]=[];
     groups[grp].push({fn,i,color:FCOLORS[i%FCOLORS.length]});
   });
-  const GROUP_ORDER=[...BASE_GROUP_ORDER,...dynamicSections.sort()];
+
+  const preferred=['ERRAGADA (132KV)','JUBILEE HILLS','NIMS','ERRAGADA (33KV)'];
+  const dynamic=Object.keys(groups).filter(g=>!preferred.includes(g)).sort();
+  const order=[...preferred.filter(g=>groups[g]),...dynamic];
 
   let globalIdx=0;
-  GROUP_ORDER.forEach(grpKey=>{
-    const members=groups[grpKey];
+  order.forEach((grpKey,gi)=>{
+    const members=groups[grpKey]||[];
     if(!members.length)return;
+
+    const grpColor=FCOLORS[gi%FCOLORS.length];
     const grpDiv=document.createElement('div');
     grpDiv.className='fgrp';
     grpDiv.dataset.group=grpKey;
 
-    // Group header
     const hd=document.createElement('div');
     hd.className='fgrp-hd';
     hd.innerHTML=`<span class="fgrp-arrow">▾</span>
-      <div class="fgrp-dot" style="background:${GROUP_COLORS[grpKey]||'#78909c'}"></div>
+      <div class="fgrp-dot" style="background:${grpColor}"></div>
       <span class="fgrp-label">${grpKey}</span>
       <span class="fgrp-cnt">${members.length}</span>`;
+    grpDiv.appendChild(hd);
+
+    const body=document.createElement('div');
+    body.className='fgrp-body';
+    body.style.maxHeight='2200px';
+
     hd.onclick=()=>{
       hd.classList.toggle('collapsed');
       body.classList.toggle('collapsed');
       if(!body.classList.contains('collapsed'))body.style.maxHeight=body.scrollHeight+'px';
       else body.style.maxHeight='0';
     };
-    grpDiv.appendChild(hd);
-
-    // Group body
-    const body=document.createElement('div');
-    body.className='fgrp-body';
-    body.style.maxHeight='2000px';
 
     members.forEach(({fn,i,color})=>{
       const fe=fn.replace(/'/g,"\\'");
@@ -1420,6 +1406,8 @@ function buildFeederChecks(){
     grpDiv.appendChild(body);
     container.appendChild(grpDiv);
   });
+
+  if(typeof updateFeederBadges==='function') updateFeederBadges();
 }
 
 function filterFeeders(q){
@@ -1896,8 +1884,8 @@ function dismissLoader(){
                 const coords=feat.geometry.type==='LineString'?feat.geometry.coordinates.map(c=>[c[1],c[0]]):feat.geometry.coordinates[0].map(c=>[c[1],c[0]]);
                 let fName=p['Feeder_Name']||p['Name of the Feeder']||'Feeder Segments';
                 let cStatus=feederStatus[fName]||'live';
-                const layer=L.polyline(coords,{color,weight:5.5,opacity:.92,lineCap:'round',lineJoin:'round',className:cStatus==='breakdown'?'feeder-breakdown':'',pane:'feederPane'});
-                layer.flowLayer=L.polyline(coords,{color:'#ffffff',weight:2.7,opacity:.92,dashArray:'4 18',className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
+                const layer=L.polyline(coords,{color,weight:5.5,opacity:.92,lineCap:'round',lineJoin:'round',className:cStatus==='breakdown'?'feeder-breakdown':''});
+                layer.flowLayer=L.polyline(coords,{color:'#ffffff',weight:3,className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
                 const regData={type:'fsegs',feeder:'Feeder Segments',cable:'-'};
                 layer.bindPopup(popup(feat,regData));
                 layer.on('popupopen',function(e){e.popup.setContent(popup(feat,regData));});
@@ -2103,23 +2091,6 @@ document.getElementById('loader').addEventListener('click',dismissLoader);
 // CSV / XLSX UPLOAD ENGINE
 // ══════════════════════════════════════════════════
 const uploadedFiles={};
-const uploadedFeederMeta={};
-const uploadedFirebaseKeys={};
-
-function inferSectionFromRows(rows,fileName){
-  const first=(rows&&rows[0])||{};
-  const val=_getRowVal(first,'section','Section','section_name','Section Name','lines_section','Lines Section');
-  if(val)return val.replace(/\s+section$/i,'').trim();
-  const n=String(fileName||'').replace(/[_-]/g,' ');
-  const m=n.match(/([A-Za-z ]+?)\s*section/i);
-  if(m)return m[1].trim();
-  return 'Uploaded';
-}
-
-function isUploadedFeeder(fn){
-  return !!uploadedFeederMeta[fn];
-}
-
 
 function parseCSV(text){
   const lines=text.split(/\r?\n/).filter(Boolean);
@@ -2159,14 +2130,16 @@ function handleFileUpload(input){
     }
     if(!rows.length){toast('No valid rows found in file',3000);return;}
     const fn=rows[0].feeder_name||rows[0]['Feeder Name']||rows[0]['feeder name']||file.name.replace(/\.[^.]+$/,'');
+    const section=getSectionFromRows(rows,fn);
     const key=file.name;
-    uploadedFiles[key]={feederName:fn,rows,fileName:file.name,section:inferSectionFromRows(rows,file.name)};
+    uploadedFiles[key]={feederName:fn,rows,fileName:file.name,section};
+    feederSectionMap[fn]=section;
     const sel=document.getElementById('dfFileSelect');
     let opt=sel.querySelector('option[value="'+CSS.escape(key)+'"]');
     if(!opt){opt=document.createElement('option');opt.value=key;sel.appendChild(opt);}
-    opt.textContent=file.name+' ('+fn.substring(0,20)+')';
+    opt.textContent=section+' — '+file.name+' ('+fn.substring(0,20)+')';
     sel.value=key;
-    toast('Loaded: '+file.name+' — '+rows.length+' rows, feeder: '+fn.substring(0,25),3500);
+    toast('Loaded: '+file.name+' — '+rows.length+' rows, section: '+section,3500);
   };
   if(isXLSX)reader.readAsArrayBuffer(file);
   else reader.readAsText(file);
@@ -2197,30 +2170,50 @@ function _drawSegment(feederName, coords, typeRaw, regLine){
   const cable=isTrans?'-':isOH?'OH':'UG';
 
   const cStatus=feederStatus[feederName]||'live';
+
+  // Main feeder line: linePane keeps UG/OH below flow but above base map.
   const lineLayer=L.polyline(coords,{
-    color,weight:5.5,opacity:.92,smoothFactor:1,lineCap:'round',lineJoin:'round',pane:'feederPane',
+    color: cStatus==='breakdown' ? '#ff1744' : color,
+    weight: cStatus==='breakdown' ? 7 : 5.8,
+    opacity: cStatus==='idle' ? 0.55 : 1,
+    smoothFactor:1,lineCap:'round',lineJoin:'round',
+    pane:'linePane',
     className:cStatus==='breakdown'?'feeder-breakdown':''
   });
+
+  // White energy-flow overlay: thin enough so UG/OH color remains visible.
   const flowLayer=L.polyline(coords,{
-    color:'#ffffff',weight:2.7,opacity:.92,dashArray:'4 18',
+    color:'#ffffff',
+    weight:2.2,
+    opacity:0.9,
     className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),
     interactive:false,bubblingMouseEvents:false,pane:'flowPane'
   });
+
   lineLayer.flowLayer=flowLayer;
   const lineFeat={type:'Feature',geometry:{type:'LineString',coordinates:coords.map(c=>[c[1],c[0]])},
     properties:{'Feeder Name':feederName,'Type of Feeder':typeRaw||cable}};
-  lineLayer.hitLayer=L.polyline(coords,{color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false,pane:'feederHitPane'});
+
+  // Wide invisible click layer, but kept below markers so pole popup has priority.
+  lineLayer.hitLayer=L.polyline(coords,{color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false,pane:'linePane'});
+
   bindFeederLinePopup(lineLayer,lineFeat,regLine,feederName,cable);
-  lineLayer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:4});});
+  lineLayer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:3});});
   lineLayer.on('mouseout',e=>{
     const iF=focusedFeeder&&focusedFeeder!==feederName;
-    e.target.setStyle({weight:5.5,opacity:iF?.15:.92});
-    if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:3});
+    const st=feederStatus[feederName]||'live';
+    e.target.setStyle({
+      color: st==='breakdown' ? '#ff1744' : color,
+      weight: st==='breakdown' ? 7 : 5.8,
+      opacity: st==='idle' ? 0.55 : (iF?.15:1)
+    });
+    if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:2.2});
   });
+
   lineLayer._editId=editLayerCounter++;lineLayer.feature=lineFeat;
-  allLayers.push({layer:lineLayer,reg:regLine,feederName,cable,poleNo:null});
+  allLayers.push({layer:lineLayer,reg:{...regLine,cable},feederName,cable,poleNo:null});
   if(!feederLayerMap[feederName])feederLayerMap[feederName]=[];
-  feederLayerMap[feederName].push({layer:lineLayer,reg:regLine,cable});
+  feederLayerMap[feederName].push({layer:lineLayer,reg:{...regLine,cable},cable});
 }
 
 // ── Connect array of parsed poles as type-segmented polylines ──
@@ -2249,7 +2242,7 @@ function _drawPoleSequence(feederName, poles, regLine){
   if(segCoords.length>=2)_drawSegment(feederName,segCoords,segType,regLine);
 }
 
-function renderUploadedRows(rows,sourceFileName,opts={}){
+function renderUploadedRows(rows,sourceFileName){
   const feederMap={};
   rows.forEach((row,idx)=>{
     const fn=_getRowVal(row,'feeder_name','Feeder Name','feeder name')||sourceFileName.replace(/\.[^.]+$/,'');
@@ -2260,9 +2253,7 @@ function renderUploadedRows(rows,sourceFileName,opts={}){
   const allRenderedFeeders=[];
 
   Object.entries(feederMap).forEach(([feederName,feederRows])=>{
-    const sectionName=inferSectionFromRows(feederRows,sourceFileName);
-    uploadedFeederMeta[feederName]={section:sectionName,fileName:sourceFileName,uploaded:true};
-    uploadedFirebaseKeys[feederName]=sourceFileName;
+    feederSectionMap[feederName]=getSectionFromRows(feederRows,feederName);
     removeFeederLayers(feederName);
     if(!feederLayerMap[feederName])feederLayerMap[feederName]=[];
 
@@ -2327,7 +2318,7 @@ function renderUploadedRows(rows,sourceFileName,opts={}){
         'Type of Cable Point':abSwitch,
         'Type of Feeder':p.typeRaw,
         'Nature of Feeder':_getRowVal(p.row,'nature_of_feeder','Nature of Feeder'),
-        'Section':_getRowVal(p.row,'section','Section')||sectionName,
+        'Section':_getRowVal(p.row,'section','Section'),
         'Sub Division':_getRowVal(p.row,'sub_division','Sub Division'),
         'Division':_getRowVal(p.row,'division','Division'),
         'Latitude':p.lat,'Longitude':p.lng,
@@ -2366,10 +2357,10 @@ function renderUploadedRows(rows,sourceFileName,opts={}){
 
   const totalPts=allRenderedFeeders.reduce((s,f)=>s+f.points,0);
   const fnNames=allRenderedFeeders.map(f=>f.feederName.split('→')[1]?.trim()||f.feederName).join(', ');
-  if(!opts.silent)toast('✅ Loaded '+allRenderedFeeders.length+' feeder(s): '+fnNames.substring(0,40)+' — '+totalPts+' pts',4000);
+  toast('✅ Loaded '+allRenderedFeeders.length+' feeder(s): '+fnNames.substring(0,40)+' — '+totalPts+' pts',4000);
 
   const allPts=allRenderedFeeders.flatMap(f=>f.coords);
-  if(!opts.silent&&allPts.length>0){
+  if(allPts.length>0){
     map.flyToBounds(L.latLngBounds(allPts),{padding:[60,60],maxZoom:16,animate:true,duration:.7});
   }
 }
@@ -2377,9 +2368,19 @@ function runUploadedFeeder(){
   const sel=document.getElementById('dfFileSelect');
   const key=sel.value;
   if(!key||!uploadedFiles[key]){toast('Select an uploaded file first');return;}
-  const {rows,fileName}=uploadedFiles[key];
+  const {rows,fileName,feederName,section}=uploadedFiles[key];
   renderUploadedRows(rows,fileName);
-  if(typeof fbSaveUploadedFile==='function')fbSaveUploadedFile(key);
+
+  // Save uploaded feeder file permanently in Firebase.
+  if(typeof fbSet==='function'){
+    fbSet(`uploadedFiles/${safeFbKey(key)}`,{
+      fileName,
+      feederName,
+      section: section || getSectionFromRows(rows,feederName),
+      rows,
+      savedAt: new Date().toISOString()
+    });
+  }
 }
 
 function removeFeederLayers(fn){
@@ -2399,12 +2400,12 @@ function deleteUploadedFeeder(){
   const key=sel.value;
   if(!key||!uploadedFiles[key]){toast('Select a file to delete');return;}
   const {feederName}=uploadedFiles[key];
-  if(!confirm('Delete feeder "'+feederName+'" from map?'))return;
+  if(!confirm('Delete feeder "'+feederName+'" from map and Firebase?'))return;
   removeFeederLayers(feederName);
-  feederNames.delete(feederName);delete feederState[feederName];delete uploadedFeederMeta[feederName];delete uploadedFirebaseKeys[feederName];delete uploadedFiles[key];
-  if(typeof fbDeleteUploadedFile==='function')fbDeleteUploadedFile(key);
+  feederNames.delete(feederName);delete feederState[feederName];delete feederSectionMap[feederName];delete uploadedFiles[key];
   sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
   sel.value='';buildFeederChecks();updateCounts();
+  if(typeof fbSet==='function') fbSet(`uploadedFiles/${safeFbKey(key)}`,null);
   toast('🗑 Deleted: '+feederName.substring(0,25),2500);
 }
 
@@ -2412,7 +2413,8 @@ function deleteFeederFromMap(fn,e){
   if(e)e.stopPropagation();
   if(!confirm('Delete feeder "'+fn+'" from map?'))return;
   if(focusedFeeder===fn)exitFocusedFeeder();
-  removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];
+  removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];delete feederSectionMap[fn];
+  Object.keys(uploadedFiles).forEach(k=>{if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){delete uploadedFiles[k];document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove(); if(typeof fbSet==='function')fbSet(`uploadedFiles/${safeFbKey(k)}`,null);}});
   buildFeederChecks();updateCounts();
   toast('🗑 Deleted: '+fn.substring(0,25),2500);
 }
@@ -2479,51 +2481,6 @@ function fbGet(path){
       showFbStatus("error");
       return null;
     });
-}
-
-
-function fbSaveUploadedFile(key){
-  const rec=uploadedFiles[key];
-  if(!rec)return Promise.resolve();
-  const payload={
-    fileName:rec.fileName||key,
-    feederName:rec.feederName||'',
-    section:rec.section||inferSectionFromRows(rec.rows,rec.fileName||key),
-    rows:rec.rows||[],
-    savedAt:new Date().toISOString()
-  };
-  return fbSet(`uploadedFeeders/${safeFbKey(key)}`,payload);
-}
-
-function fbDeleteUploadedFile(key){
-  return fbSet(`uploadedFeeders/${safeFbKey(key)}`,null);
-}
-
-function fbLoadUploadedFeeders(){
-  fbGet('uploadedFeeders').then(data=>{
-    if(!data)return;
-    const sel=document.getElementById('dfFileSelect');
-    Object.keys(data).forEach(encKey=>{
-      const rec=data[encKey];
-      if(!rec||!rec.rows||!rec.rows.length)return;
-      const key=decodeURIComponent(encKey);
-      uploadedFiles[key]={
-        feederName:rec.feederName||key,
-        rows:rec.rows,
-        fileName:rec.fileName||key,
-        section:rec.section||inferSectionFromRows(rec.rows,rec.fileName||key)
-      };
-      if(sel&&!sel.querySelector('option[value="'+CSS.escape(key)+'"]')){
-        const opt=document.createElement('option');
-        opt.value=key;
-        opt.textContent=(rec.fileName||key)+' ('+(rec.section||'Uploaded')+')';
-        sel.appendChild(opt);
-      }
-      renderUploadedRows(rec.rows,rec.fileName||key,{silent:true});
-    });
-    updateVisibility();buildFeederChecks();updateCounts();buildDropdownOptions();
-    toast('Firebase uploaded feeders restored',2500);
-  });
 }
 
 /* Save feeder status to Firebase */
@@ -2653,7 +2610,6 @@ window.setFeederStatus = function(fn, status, btnEl, skipFirebase){
   if(typeof updateFeederBadges === "function"){
     updateFeederBadges();
   }
-  if(typeof refreshLayerOrder==='function')refreshLayerOrder();
 
   if(!skipFirebase){
     fbSaveFeederStatus(fn, status);
@@ -2664,10 +2620,43 @@ window.setFeederStatus = function(fn, status, btnEl, skipFirebase){
   }
 };
 
+
+function fbLoadUploadedFiles(){
+  if(typeof fbGet!=='function')return;
+  fbGet('uploadedFiles').then(data=>{
+    if(!data)return;
+    const sel=document.getElementById('dfFileSelect');
+
+    Object.keys(data).forEach(k=>{
+      const item=data[k];
+      if(!item||!item.rows||!item.rows.length)return;
+      const fileKey=item.fileName||decodeURIComponent(k);
+      const feederName=item.feederName||fileKey.replace(/\.[^.]+$/,'');
+      const section=item.section||getSectionFromRows(item.rows,feederName);
+
+      uploadedFiles[fileKey]={fileName:fileKey,feederName,section,rows:item.rows};
+      feederSectionMap[feederName]=section;
+
+      if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
+        const opt=document.createElement('option');
+        opt.value=fileKey;
+        opt.textContent=section+' — '+fileKey+' ('+feederName.substring(0,20)+')';
+        sel.appendChild(opt);
+      }
+
+      renderUploadedRows(item.rows,fileKey);
+    });
+
+    buildFeederChecks();
+    updateCounts();
+    toast('Firebase uploaded feeders restored',2500);
+  });
+}
+
 /* Auto-load Firebase after map/code finishes */
 setTimeout(()=>{
   fbLoadFeederStatuses();
-  fbLoadUploadedFeeders();
+  fbLoadUploadedFiles();
 }, 2500);
 </script>
 </body>
