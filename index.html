@@ -535,7 +535,61 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 </style>
 </head>
 <body>
+function showFbStatus(type, text){
+  const el = document.getElementById("fbStatus");
+  if(!el) return;
 
+  el.className = "";
+  el.classList.add("show", type);
+
+  if(type === "saving") el.textContent = text || "Firebase saving...";
+  if(type === "saved") el.textContent = text || "Firebase saved";
+  if(type === "loading") el.textContent = text || "Firebase loading...";
+  if(type === "error") el.textContent = text || "Firebase error";
+
+  clearTimeout(window.__fbStatusTimer);
+  window.__fbStatusTimer = setTimeout(()=>{
+    el.classList.remove("show");
+  }, 1800);
+}
+
+function fbSet(path, data){
+  showFbStatus("saving");
+  return fetch(`${FIREBASE_URL}/${path}.json`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  })
+  .then(res=>{
+    if(!res.ok) throw new Error("Firebase write failed");
+    showFbStatus("saved");
+    return res.json();
+  })
+  .catch(err=>{
+    console.error(err);
+    showFbStatus("error");
+  });
+}
+
+function fbGet(path){
+  showFbStatus("loading");
+  return fetch(`${FIREBASE_URL}/${path}.json`)
+    .then(res=>{
+      if(!res.ok) throw new Error("Firebase read failed");
+      return res.json();
+    })
+    .then(data=>{
+      showFbStatus("saved");
+      return data;
+    })
+    .catch(err=>{
+      console.error(err);
+      showFbStatus("error");
+      return null;
+    });
+}
 <div id="loader">
   <div class="ld-logo">TGSPDCL</div>
   <div class="ld-sub">ALLWYN SECTION · 33KV</div>
