@@ -1216,8 +1216,12 @@ function setFeederStatus(fn,status,btnEl){
     else if(status==='idle'){item.layer.setStyle({color:'#9e9e9e',weight:5,opacity:.6});safelyManageClass(item.layer,'feeder-breakdown',false);if(item.layer.flowLayer){item.layer.flowLayer.options.className='feeder-flow-overlay hidden-flow';safelyManageClass(item.layer.flowLayer,'hidden-flow',true);}}
   });
   document.querySelectorAll(`.fi-btn[data-feeder="${fn}"]`).forEach(btn=>{btn.classList.remove('fi-active');if(btn.classList.contains('fi-'+status))btn.classList.add('fi-active');});
-  updateFeederBadges();
-  toast(`${fn.split('→')[1]?.trim()||fn}: ${status.toUpperCase()}`);
+ updateFeederBadges();
+
+// 🔥 Save feeder status to Firebase
+fbSet(`feeders/${encodeURIComponent(fn)}/status`, status);
+
+toast(`${fn.split('→')[1]?.trim()||fn}: ${status.toUpperCase()}`);
 }
 
 function updateFeederBadges(){
