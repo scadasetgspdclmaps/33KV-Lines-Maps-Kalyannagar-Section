@@ -2319,6 +2319,212 @@ function deleteFeederFromMap(fn,e){
   buildFeederChecks();updateCounts();
   toast('🗑 Deleted: '+fn.substring(0,25),2500);
 }
+/* =========================================================
+   FIREBASE INTEGRATION — TGSPDCL KALYANNAGAR GIS
+   Paste this once inside the main <script>, near bottom
+========================================================= */
+
+const FIREBASE_URL = "https://tgspdcl-gis-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+function safeFbKey(name){
+  return encodeURIComponent(String(name || "UNKNOWN_FEEDER"));
+}
+
+function showFbStatus(type, text){
+  const el = document.getElementById("fbStatus");
+  if(!el) return;
+
+  el.className = "";
+  el.classList.add("show", type);
+
+  if(type === "saving") el.textContent = text || "Firebase saving...";
+  if(type === "saved") el.textContent = text || "Firebase saved";
+  if(type === "loading") el.textContent = text || "Firebase loading...";
+  if(type === "error") el.textContent = text || "Firebase error";
+
+  clearTimeout(window.__fbStatusTimer);
+  window.__fbStatusTimer = setTimeout(()=>{
+    el.classList.remove("show");
+  }, 1800);
+}
+
+function fbSet(path, data){
+  showFbStatus("saving");
+  return fetch(`${FIREBASE_URL}/${path}.json`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  .then(res=>{
+    if(!res.ok) throw new Error("Firebase write failed");
+    showFbStatus("saved");
+    return res.json();
+  })
+  .catch(err=>{
+    console.error(err);
+    showFbStatus("error");
+  });
+}
+
+function fbGet(path){
+  showFbStatus("loading");
+  return fetch(`${FIREBASE_URL}/${path}.json`)
+    .then(res=>{
+      if(!res.ok) throw new Error("Firebase read failed");
+      return res.json();
+    })
+    .then(data=>{
+      showFbStatus("saved");
+      return data;
+    })
+    .catch(err=>{
+      console.error(err);
+      showFbStatus("error");
+      return null;
+    });
+}
+
+/* Save feeder status to Firebase */
+function fbSaveFeederStatus(fn, status){
+  return fbSet(`feeders/${safeFbKey(fn)}/status`, status);
+}
+
+/* Load feeder status from Firebase */
+function fbLoadFeederStatuses(){
+  fbGet("feeders").then(data=>{
+    if(!data) return;
+
+    Object.keys(data).forEach(key=>{
+      const fn = decodeURIComponent(key);
+      const status = data[key]?.status;
+
+      if(!status) return;
+      if(typeof feederStatus === "undefined") return;
+
+      feederStatus[fn] = status;
+
+      if(typeof setFeederStatus === "function"){
+        setFeederStatus(fn, status, null, true);
+      }
+    });
+
+    if(typeof updateFeederBadges === "function"){
+      updateFeederBadges();
+    }
+  });
+}
+
+/* Override existing setFeederStatus safely */
+const originalSetFeederStatus = window.setFeederStatus;
+
+window.setFeederStatus = function(fn, status, btnEl, skipFirebase){
+  feederStatus[fn] = status;
+
+  if(btnEl){
+    const bar = btnEl.closest(".fs-status-bar");
+    if(bar){
+      bar.querySelectorAll(".fs-status-btn").forEach(b=>{
+        b.classList.remove("active-live","active-breakdown","active-idle");
+      });
+      btnEl.classList.add("active-" + status);
+    }
+  }
+
+  const layers = feederLayerMap[fn] || [];
+
+  layers.forEach(item=>{
+    if(!item.layer.setStyle) return;
+
+    const isLine =
+      item.reg.type === "lines" ||
+      (item.reg.type && item.reg.type.startsWith("fseg"));
+
+    if(!isLine) return;
+
+    const baseColor = item.cable === "OH" ? "#f44336" : "#2196f3";
+
+    if(status === "live"){
+      item.layer.setStyle({
+        color: baseColor,
+        weight: 5.5,
+        opacity: 0.92
+      });
+
+      if(typeof safelyManageClass === "function"){
+        safelyManageClass(item.layer, "feeder-breakdown", false);
+      }
+
+      if(item.layer.flowLayer){
+        item.layer.flowLayer.options.className = "feeder-flow-overlay";
+        if(typeof safelyManageClass === "function"){
+          safelyManageClass(item.layer.flowLayer, "hidden-flow", false);
+        }
+      }
+    }
+
+    else if(status === "breakdown"){
+      item.layer.setStyle({
+        color: "#ff1744",
+        weight: 7,
+        opacity: 1
+      });
+
+      if(typeof safelyManageClass === "function"){
+        safelyManageClass(item.layer, "feeder-breakdown", true);
+      }
+
+      if(item.layer.flowLayer){
+        item.layer.flowLayer.options.className = "feeder-flow-overlay hidden-flow";
+        if(typeof safelyManageClass === "function"){
+          safelyManageClass(item.layer.flowLayer, "hidden-flow", true);
+        }
+      }
+    }
+
+    else if(status === "idle"){
+      item.layer.setStyle({
+        color: "#9e9e9e",
+        weight: 5,
+        opacity: 0.6
+      });
+
+      if(typeof safelyManageClass === "function"){
+        safelyManageClass(item.layer, "feeder-breakdown", false);
+      }
+
+      if(item.layer.flowLayer){
+        item.layer.flowLayer.options.className = "feeder-flow-overlay hidden-flow";
+        if(typeof safelyManageClass === "function"){
+          safelyManageClass(item.layer.flowLayer, "hidden-flow", true);
+        }
+      }
+    }
+  });
+
+  document.querySelectorAll(`.fi-btn[data-feeder="${fn}"]`).forEach(btn=>{
+    btn.classList.remove("fi-active");
+    if(btn.classList.contains("fi-" + status)){
+      btn.classList.add("fi-active");
+    }
+  });
+
+  if(typeof updateFeederBadges === "function"){
+    updateFeederBadges();
+  }
+
+  if(!skipFirebase){
+    fbSaveFeederStatus(fn, status);
+  }
+
+  if(typeof toast === "function"){
+    toast(`${fn.split("→")[1]?.trim() || fn}: ${status.toUpperCase()}`);
+  }
+};
+
+/* Auto-load Firebase after map/code finishes */
+setTimeout(()=>{
+  fbLoadFeederStatuses();
+}, 2500);
 </script>
 </body>
 </html>
