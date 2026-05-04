@@ -2373,13 +2373,17 @@ function runUploadedFeeder(){
 
   // Save uploaded feeder file permanently in Firebase.
   if(typeof fbSet==='function'){
-    fbSet(`uploadedFiles/${safeFbKey(key)}`,{
+    fbSet(`uploadedFeeders/${safeFbKey(key)}`,{
       fileName,
       feederName,
       section: section || getSectionFromRows(rows,feederName),
       rows,
       savedAt: new Date().toISOString()
+    }).then(()=>{
+      toast('☁️ Saved to Firebase. It will stay after refresh.', 3000);
     });
+  }else{
+    toast('Firebase save function not found', 3000);
   }
 }
 
@@ -2405,7 +2409,7 @@ function deleteUploadedFeeder(){
   feederNames.delete(feederName);delete feederState[feederName];delete feederSectionMap[feederName];delete uploadedFiles[key];
   sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
   sel.value='';buildFeederChecks();updateCounts();
-  if(typeof fbSet==='function') fbSet(`uploadedFiles/${safeFbKey(key)}`,null);
+  if(typeof fbSet==='function') fbSet(`uploadedFeeders/${safeFbKey(key)}`,null);
   toast('🗑 Deleted: '+feederName.substring(0,25),2500);
 }
 
@@ -2414,7 +2418,7 @@ function deleteFeederFromMap(fn,e){
   if(!confirm('Delete feeder "'+fn+'" from map?'))return;
   if(focusedFeeder===fn)exitFocusedFeeder();
   removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];delete feederSectionMap[fn];
-  Object.keys(uploadedFiles).forEach(k=>{if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){delete uploadedFiles[k];document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove(); if(typeof fbSet==='function')fbSet(`uploadedFiles/${safeFbKey(k)}`,null);}});
+  Object.keys(uploadedFiles).forEach(k=>{if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){delete uploadedFiles[k];document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove(); if(typeof fbSet==='function')fbSet(`uploadedFeeders/${safeFbKey(k)}`,null);}});
   buildFeederChecks();updateCounts();
   toast('🗑 Deleted: '+fn.substring(0,25),2500);
 }
@@ -2426,7 +2430,14 @@ function deleteFeederFromMap(fn,e){
 /* FIREBASE_URL already defined in <head> */
 
 function safeFbKey(name){
-  return encodeURIComponent(String(name || "UNKNOWN_FEEDER"));
+  // Firebase Realtime Database keys cannot contain . # $ / [ ]
+  // Use a readable stable key so uploaded CSV/XLSX persists safely after refresh.
+  return String(name || "UNKNOWN_FEEDER")
+    .trim()
+    .replace(/[.#$/\[\]\/]/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 180);
 }
 
 function showFbStatus(type, text){
@@ -2623,14 +2634,14 @@ window.setFeederStatus = function(fn, status, btnEl, skipFirebase){
 
 function fbLoadUploadedFiles(){
   if(typeof fbGet!=='function')return;
-  fbGet('uploadedFiles').then(data=>{
+  fbGet('uploadedFeeders').then(data=>{
     if(!data)return;
     const sel=document.getElementById('dfFileSelect');
 
     Object.keys(data).forEach(k=>{
       const item=data[k];
       if(!item||!item.rows||!item.rows.length)return;
-      const fileKey=item.fileName||decodeURIComponent(k);
+      const fileKey=item.fileName||k;
       const feederName=item.feederName||fileKey.replace(/\.[^.]+$/,'');
       const section=item.section||getSectionFromRows(item.rows,feederName);
 
