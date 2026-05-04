@@ -532,67 +532,23 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
   border:1px solid rgba(255,23,68,.25);color:rgba(255,68,102,.6);
   background:rgba(255,23,68,.06);font-family:var(--mono);transition:.2s;flex-shrink:0}
 .fn-del-btn:hover{background:rgba(255,23,68,.2);color:#ff4466}
+
+/* ══ FIREBASE SYNC STATUS ══ */
+#fbStatus{position:fixed;bottom:46px;left:50%;transform:translateX(-50%);z-index:1600;
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:5px 14px;
+  border-radius:12px;opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap}
+#fbStatus.show{opacity:1}
+#fbStatus.saving{background:rgba(255,171,0,.18);border:1px solid rgba(255,171,0,.4);color:#ffab00}
+#fbStatus.saved{background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.3);color:#00e676}
+#fbStatus.loading{background:rgba(0,200,255,.1);border:1px solid rgba(0,200,255,.25);color:var(--live)}
+#fbStatus.error{background:rgba(255,23,68,.12);border:1px solid rgba(255,23,68,.3);color:#ff4466}
+
 </style>
 </head>
 <body>
-function showFbStatus(type, text){
-  const el = document.getElementById("fbStatus");
-  if(!el) return;
-
-  el.className = "";
-  el.classList.add("show", type);
-
-  if(type === "saving") el.textContent = text || "Firebase saving...";
-  if(type === "saved") el.textContent = text || "Firebase saved";
-  if(type === "loading") el.textContent = text || "Firebase loading...";
-  if(type === "error") el.textContent = text || "Firebase error";
-
-  clearTimeout(window.__fbStatusTimer);
-  window.__fbStatusTimer = setTimeout(()=>{
-    el.classList.remove("show");
-  }, 1800);
-}
-
-function fbSet(path, data){
-  showFbStatus("saving");
-  return fetch(`${FIREBASE_URL}/${path}.json`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(data)
-  })
-  .then(res=>{
-    if(!res.ok) throw new Error("Firebase write failed");
-    showFbStatus("saved");
-    return res.json();
-  })
-  .catch(err=>{
-    console.error(err);
-    showFbStatus("error");
-  });
-}
-
-function fbGet(path){
-  showFbStatus("loading");
-  return fetch(`${FIREBASE_URL}/${path}.json`)
-    .then(res=>{
-      if(!res.ok) throw new Error("Firebase read failed");
-      return res.json();
-    })
-    .then(data=>{
-      showFbStatus("saved");
-      return data;
-    })
-    .catch(err=>{
-      console.error(err);
-      showFbStatus("error");
-      return null;
-    });
-}
 <div id="loader">
   <div class="ld-logo">TGSPDCL</div>
-  <div class="ld-sub">ALLWYN SECTION · 33KV</div>
+  <div class="ld-sub">KALYANNAGAR SECTION · 33KV</div>
   <div class="ld-bar"><div class="ld-fill" id="ldfill"></div></div>
 </div>
 
@@ -660,6 +616,7 @@ function fbGet(path){
 </div>
 
 <div id="toast"></div>
+<div id="fbStatus"></div>
 
 <!-- ══ FEEDER STATS CARD ══ -->
 <div id="feederStatsCard">
@@ -2324,7 +2281,7 @@ function deleteFeederFromMap(fn,e){
    Paste this once inside the main <script>, near bottom
 ========================================================= */
 
-const FIREBASE_URL = "https://tgspdcl-gis-default-rtdb.asia-southeast1.firebasedatabase.app";
+/* FIREBASE_URL already defined in <head> */
 
 function safeFbKey(name){
   return encodeURIComponent(String(name || "UNKNOWN_FEEDER"));
