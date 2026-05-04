@@ -736,7 +736,7 @@ map.createPane('pointsPane');
 map.getPane('pointsPane').style.zIndex = 650;
 map.createPane('flowPane');
 map.getPane('flowPane').style.pointerEvents = 'none';
-map.getPane('flowPane').style.zIndex = 401;
+map.getPane('flowPane').style.zIndex = 350; // keep animated white flow BELOW UG/OH lines
 
 L.control.zoom({position:'bottomright'}).addTo(map);
 L.control.scale({position:'bottomright',imperial:false}).addTo(map);
@@ -1067,6 +1067,33 @@ function requestVisibilityUpdate(){
   _visRAF=requestAnimationFrame(()=>{_visRAF=null;updateVisibility();});
 }
 
+
+function stabilizeLayerOrder(){
+  // Keep the visual priority correct: flow under lines, UG next, OH orange on top, devices/SS already use pointsPane.
+  try{
+    allLayers.forEach(item=>{
+      if(item.layer && item.layer.flowLayer && map.hasLayer(item.layer.flowLayer) && item.layer.flowLayer.bringToBack){
+        item.layer.flowLayer.bringToBack();
+      }
+    });
+    allLayers.forEach(item=>{
+      if(item.cable==='UG' && item.layer && map.hasLayer(item.layer) && item.layer.bringToFront){
+        item.layer.bringToFront();
+      }
+    });
+    allLayers.forEach(item=>{
+      if(item.cable==='OH' && item.layer && map.hasLayer(item.layer) && item.layer.bringToFront){
+        item.layer.bringToFront();
+      }
+    });
+    allLayers.forEach(item=>{
+      if(item.layer && item.layer.hitLayer && map.hasLayer(item.layer.hitLayer) && item.layer.hitLayer.bringToFront){
+        item.layer.hitLayer.bringToFront();
+      }
+    });
+  }catch(e){}
+}
+
 function updateVisibility(){
   let vis=0;
   allLayers.forEach(item=>{
@@ -1099,6 +1126,7 @@ function updateVisibility(){
     }
   });
   document.getElementById('st-visible').textContent=vis;
+  stabilizeLayerOrder();
   syncLabels();
 }
 
@@ -2063,6 +2091,31 @@ document.getElementById('loader').addEventListener('click',dismissLoader);
 // ══════════════════════════════════════════════════
 const uploadedFiles={};
 
+function uploadedKey(fileName, feederName){
+  return String(fileName || feederName || 'uploaded_feeder').replace(/[^A-Za-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'').substring(0,120) || ('uploaded_'+Date.now());
+}
+
+function upsertUploadedFileOption(key, fileName, feederName){
+  const sel=document.getElementById('dfFileSelect');
+  if(!sel)return;
+  let opt=sel.querySelector('option[value="'+CSS.escape(key)+'"]');
+  if(!opt){opt=document.createElement('option');opt.value=key;sel.appendChild(opt);}
+  opt.textContent=(fileName||key)+' ('+String(feederName||'').substring(0,20)+')';
+}
+
+function saveUploadedFileToFirebase(key){
+  const item=uploadedFiles[key];
+  if(!item || typeof fbSet!=='function')return Promise.resolve();
+  return fbSet('uploadedFeeders/'+safeFbKey(key),{
+    key,
+    fileName:item.fileName,
+    feederName:item.feederName,
+    rows:item.rows,
+    savedAt:new Date().toISOString()
+  });
+}
+
+
 function parseCSV(text){
   const lines=text.split(/\r?\n/).filter(Boolean);
   if(!lines.length)return[];
@@ -2101,13 +2154,11 @@ function handleFileUpload(input){
     }
     if(!rows.length){toast('No valid rows found in file',3000);return;}
     const fn=rows[0].feeder_name||rows[0]['Feeder Name']||rows[0]['feeder name']||file.name.replace(/\.[^.]+$/,'');
-    const key=file.name;
+    const key=uploadedKey(file.name,fn);
     uploadedFiles[key]={feederName:fn,rows,fileName:file.name};
+    upsertUploadedFileOption(key,file.name,fn);
     const sel=document.getElementById('dfFileSelect');
-    let opt=sel.querySelector('option[value="'+CSS.escape(key)+'"]');
-    if(!opt){opt=document.createElement('option');opt.value=key;sel.appendChild(opt);}
-    opt.textContent=file.name+' ('+fn.substring(0,20)+')';
-    sel.value=key;
+    if(sel)sel.value=key;
     toast('Loaded: '+file.name+' — '+rows.length+' rows, feeder: '+fn.substring(0,25),3500);
   };
   if(isXLSX)reader.readAsArrayBuffer(file);
@@ -2191,7 +2242,7 @@ function _drawPoleSequence(feederName, poles, regLine){
   if(segCoords.length>=2)_drawSegment(feederName,segCoords,segType,regLine);
 }
 
-function renderUploadedRows(rows,sourceFileName){
+function renderUploadedRows(rows,sourceFileName,options={}){
   const feederMap={};
   rows.forEach((row,idx)=>{
     const fn=_getRowVal(row,'feeder_name','Feeder Name','feeder name')||sourceFileName.replace(/\.[^.]+$/,'');
@@ -2305,10 +2356,10 @@ function renderUploadedRows(rows,sourceFileName){
 
   const totalPts=allRenderedFeeders.reduce((s,f)=>s+f.points,0);
   const fnNames=allRenderedFeeders.map(f=>f.feederName.split('→')[1]?.trim()||f.feederName).join(', ');
-  toast('✅ Loaded '+allRenderedFeeders.length+' feeder(s): '+fnNames.substring(0,40)+' — '+totalPts+' pts',4000);
+  if(!options.silent)toast('✅ Loaded '+allRenderedFeeders.length+' feeder(s): '+fnNames.substring(0,40)+' — '+totalPts+' pts',4000);
 
   const allPts=allRenderedFeeders.flatMap(f=>f.coords);
-  if(allPts.length>0){
+  if(!options.skipFly && allPts.length>0){
     map.flyToBounds(L.latLngBounds(allPts),{padding:[60,60],maxZoom:16,animate:true,duration:.7});
   }
 }
@@ -2318,6 +2369,7 @@ function runUploadedFeeder(){
   if(!key||!uploadedFiles[key]){toast('Select an uploaded file first');return;}
   const {rows,fileName}=uploadedFiles[key];
   renderUploadedRows(rows,fileName);
+  saveUploadedFileToFirebase(key);
 }
 
 function removeFeederLayers(fn){
@@ -2340,6 +2392,7 @@ function deleteUploadedFeeder(){
   if(!confirm('Delete feeder "'+feederName+'" from map?'))return;
   removeFeederLayers(feederName);
   feederNames.delete(feederName);delete feederState[feederName];delete uploadedFiles[key];
+  if(typeof fbDelete==='function')fbDelete('uploadedFeeders/'+safeFbKey(key));
   sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
   sel.value='';buildFeederChecks();updateCounts();
   toast('🗑 Deleted: '+feederName.substring(0,25),2500);
@@ -2350,6 +2403,7 @@ function deleteFeederFromMap(fn,e){
   if(!confirm('Delete feeder "'+fn+'" from map?'))return;
   if(focusedFeeder===fn)exitFocusedFeeder();
   removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];
+  Object.keys(uploadedFiles).forEach(k=>{if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){delete uploadedFiles[k]; if(typeof fbDelete==='function')fbDelete('uploadedFeeders/'+safeFbKey(k)); const opt=document.querySelector('#dfFileSelect option[value="'+CSS.escape(k)+'"]'); if(opt)opt.remove();}});
   buildFeederChecks();updateCounts();
   toast('🗑 Deleted: '+fn.substring(0,25),2500);
 }
@@ -2416,6 +2470,32 @@ function fbGet(path){
       showFbStatus("error");
       return null;
     });
+}
+
+function fbDelete(path){
+  showFbStatus('saving','Firebase deleting...');
+  return fetch(`${FIREBASE_URL}/${path}.json`, { method:'DELETE' })
+    .then(res=>{ if(!res.ok) throw new Error('Firebase delete failed'); showFbStatus('saved','Firebase deleted'); return true; })
+    .catch(err=>{ console.error(err); showFbStatus('error'); return false; });
+}
+
+function fbLoadUploadedFeeders(){
+  return fbGet('uploadedFeeders').then(data=>{
+    if(!data)return;
+    Object.keys(data).forEach(key=>{
+      const item=data[key];
+      if(!item || !Array.isArray(item.rows) || !item.rows.length)return;
+      uploadedFiles[key]={
+        feederName:item.feederName || key,
+        rows:item.rows,
+        fileName:item.fileName || key
+      };
+      upsertUploadedFileOption(key, uploadedFiles[key].fileName, uploadedFiles[key].feederName);
+      renderUploadedRows(uploadedFiles[key].rows, uploadedFiles[key].fileName, {silent:true, skipFly:true});
+    });
+    buildFeederChecks();updateCounts();buildDropdownOptions();updateVisibility();
+    toast('☁ Restored uploaded feeders from Firebase',2500);
+  });
 }
 
 /* Save feeder status to Firebase */
@@ -2557,7 +2637,7 @@ window.setFeederStatus = function(fn, status, btnEl, skipFirebase){
 
 /* Auto-load Firebase after map/code finishes */
 setTimeout(()=>{
-  fbLoadFeederStatuses();
+  fbLoadUploadedFeeders().then(()=>fbLoadFeederStatuses());
 }, 2500);
 </script>
 </body>
