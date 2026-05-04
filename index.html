@@ -1004,9 +1004,9 @@ DATA_REGISTRY.forEach(reg=>{
         let flowClass='feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':'');
         layer.flowLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
           {color:'#ffffff',weight:3,className:flowClass,interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
-        layer.bindPopup(popup(feat,reg),{maxWidth:340,minWidth:260,autoPanPadding:[30,30]});
-        layer.on('popupopen',function(e){e.popup.setContent(popup(feat,reg));});
-        layer.on('click', function(e) { L.DomEvent.stopPropagation(e); layer.openPopup(e.latlng); });
+        layer.hitLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
+          {color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false});
+        bindFeederLinePopup(layer,feat,reg,feederName,cableType);
         layer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:4});});
         layer.on('mouseout',e=>{
           const isFocused=focusedFeeder&&focusedFeeder!==feederName;
@@ -1090,10 +1090,12 @@ function updateVisibility(){
     if(show){
       if(!map.hasLayer(item.layer))map.addLayer(item.layer);
       if(item.layer.flowLayer&&!map.hasLayer(item.layer.flowLayer))map.addLayer(item.layer.flowLayer);
+      if(item.layer.hitLayer&&!map.hasLayer(item.layer.hitLayer))map.addLayer(item.layer.hitLayer);
       vis++;
     }else{
       if(map.hasLayer(item.layer))map.removeLayer(item.layer);
       if(item.layer.flowLayer&&map.hasLayer(item.layer.flowLayer))map.removeLayer(item.layer.flowLayer);
+      if(item.layer.hitLayer&&map.hasLayer(item.layer.hitLayer))map.removeLayer(item.layer.hitLayer);
     }
   });
   document.getElementById('st-visible').textContent=vis;
@@ -1130,6 +1132,55 @@ function popup(feat,regEntry){
   }
   if(!rows&&!headerId)rows='<tr><td colspan="2" style="color:#999;font-style:italic;padding:4px">No attributes available</td></tr>';
   return `${headerId}<table class="popup-table">${rows}</table>${statusBar}`;
+}
+
+function escJS(s){return String(s??'').replace(/\/g,'\\').replace(/'/g,"\'").replace(/"/g,'&quot;').replace(/
+/g,' ');}
+
+function feederRoutePopup(feat, regEntry, feederName, cableType, layer, latlng){
+  const p=feat.properties||{};
+  const startEnd=String(feederName||p['Feeder Name']||'FEEDER');
+  const type=(cableType==='OH')?'OH':(cableType==='UG'?'UG':'TRANS');
+  const typeColor=(type==='OH')?'#ff9800':(type==='UG'?'#2196f3':'#9c27b0');
+  let len='—';
+  try{ len=calcLineLength(layer).toFixed(3)+' km'; }catch(e){}
+  const lat = latlng ? latlng.lat.toFixed(6) : '';
+  const lng = latlng ? latlng.lng.toFixed(6) : '';
+  const safeFeeder=escJS(startEnd);
+  return `
+    <div style="font-family:Arial,sans-serif;min-width:270px">
+      <div style="font-weight:700;font-size:14px;color:#0d1b2a;margin-bottom:6px">${startEnd}</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <span style="background:${typeColor};color:#fff;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700">${type}</span>
+        <span style="font-size:11px;color:#555">Length: <b>${len}</b></span>
+      </div>
+      <table class="popup-table">
+        <tr><th>Feeder</th><td>${startEnd}</td></tr>
+        <tr><th>Cable Type</th><td>${type}</td></tr>
+        <tr><th>Clicked Location</th><td>${lat}, ${lng}</td></tr>
+      </table>
+      <div class="fs-status-bar" style="margin-top:10px">
+        <div class="fs-status-btn ${(feederStatus[startEnd]||'live')==='live'?'active-live':''}" onclick="setFeederStatus('${safeFeeder}','live',this)">⚡ LIVE</div>
+        <div class="fs-status-btn ${(feederStatus[startEnd]||'live')==='breakdown'?'active-breakdown':''}" onclick="setFeederStatus('${safeFeeder}','breakdown',this)">🔴 DOWN</div>
+        <div class="fs-status-btn ${(feederStatus[startEnd]||'live')==='idle'?'active-idle':''}" onclick="setFeederStatus('${safeFeeder}','idle',this)">Ⅱ IDLE</div>
+      </div>
+    </div>`;
+}
+
+function bindFeederLinePopup(lineLayer, feat, regEntry, feederName, cableType){
+  if(!lineLayer)return;
+  const openAt=(e)=>{
+    if(e&&e.originalEvent)L.DomEvent.stopPropagation(e);
+    const ll=e?.latlng || (lineLayer.getBounds?lineLayer.getBounds().getCenter():map.getCenter());
+    lineLayer.bindPopup(feederRoutePopup(feat,regEntry,feederName,cableType,lineLayer,ll),{maxWidth:360,minWidth:280,autoPanPadding:[30,30]});
+    lineLayer.openPopup(ll);
+  };
+  lineLayer.on('click',openAt);
+  if(lineLayer.hitLayer){
+    lineLayer.hitLayer.on('click',openAt);
+    lineLayer.hitLayer.on('mouseover',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({weight:7.5,opacity:1}); });
+    lineLayer.hitLayer.on('mouseout',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({weight:5.5,opacity:.92}); });
+  }
 }
 
 function haversineKm(a,b){
@@ -1357,8 +1408,10 @@ function toggleAllFeeders(show){
 
 function toggleLyr(key){
   LGstate[key]=!LGstate[key];
-  document.getElementById('lyr-'+key).classList.toggle('off',!LGstate[key]);
-  requestVisibilityUpdate();
+  const row=document.getElementById('lyr-'+key);
+  if(row)row.classList.toggle('off',!LGstate[key]);
+  updateVisibility();
+  toast((LGstate[key]?'Shown: ':'Hidden: ')+key.toUpperCase());
 }
 
 function setCableFilter(v){
@@ -1655,7 +1708,7 @@ function startPickMode(){
   };
   _pickEsc=function(e){if(e.key==='Escape')cancelPickMode();};
 
-  map.once('click',_pickHandler);
+  map.once('preclick',_pickHandler);
   document.addEventListener('keydown',_pickEsc);
 }
 
@@ -1665,7 +1718,7 @@ function cancelPickMode(){
   if(btn){btn.classList.remove('picking');btn.textContent='📍 PICK ON MAP';}
   document.getElementById('pickBanner').classList.remove('active');
   map.getContainer().style.cursor='';
-  if(_pickHandler){map.off('click',_pickHandler);_pickHandler=null;}
+  if(_pickHandler){map.off('preclick',_pickHandler);_pickHandler=null;}
   if(_pickEsc){document.removeEventListener('keydown',_pickEsc);_pickEsc=null;}
 }
 
@@ -1703,6 +1756,7 @@ function deleteEditPoint(){
   item._deleted=true;
   if(map.hasLayer(item.layer))map.removeLayer(item.layer);
   if(item.layer.flowLayer&&map.hasLayer(item.layer.flowLayer))map.removeLayer(item.layer.flowLayer);
+  if(item.layer.hitLayer&&map.hasLayer(item.layer.hitLayer))map.removeLayer(item.layer.hitLayer);
   closeEditPanel();
   toast('Point deleted 🗑',2000);
 }
@@ -2092,9 +2146,8 @@ function _drawSegment(feederName, coords, typeRaw, regLine){
   lineLayer.flowLayer=flowLayer;
   const lineFeat={type:'Feature',geometry:{type:'LineString',coordinates:coords.map(c=>[c[1],c[0]])},
     properties:{'Feeder Name':feederName,'Type of Feeder':typeRaw||cable}};
-  lineLayer.bindPopup(popup(lineFeat,regLine),{maxWidth:340,minWidth:260,autoPanPadding:[30,30]});
-  lineLayer.on('popupopen',function(e){e.popup.setContent(popup(lineFeat,regLine));});
-  lineLayer.on('click',function(e){L.DomEvent.stopPropagation(e);lineLayer.openPopup(e.latlng);});
+  lineLayer.hitLayer=L.polyline(coords,{color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false});
+  bindFeederLinePopup(lineLayer,lineFeat,regLine,feederName,cable);
   lineLayer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:4});});
   lineLayer.on('mouseout',e=>{
     const iF=focusedFeeder&&focusedFeeder!==feederName;
@@ -2267,6 +2320,7 @@ function removeFeederLayers(fn){
   toRemove.forEach(i=>{
     if(map.hasLayer(i.layer))map.removeLayer(i.layer);
     if(i.layer.flowLayer&&map.hasLayer(i.layer.flowLayer))map.removeLayer(i.layer.flowLayer);
+    if(i.layer.hitLayer&&map.hasLayer(i.layer.hitLayer))map.removeLayer(i.layer.hitLayer);
     i._deleted=true;
   });
   for(let i=allLayers.length-1;i>=0;i--){if(allLayers[i].feederName===fn)allLayers.splice(i,1);}
