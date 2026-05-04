@@ -2371,19 +2371,9 @@ function runUploadedFeeder(){
   const {rows,fileName,feederName,section}=uploadedFiles[key];
   renderUploadedRows(rows,fileName);
 
-  // Save uploaded feeder file permanently in Firebase.
-  if(typeof fbSet==='function'){
-    fbSet(`uploadedFeeders/${safeFbKey(key)}`,{
-      fileName,
-      feederName,
-      section: section || getSectionFromRows(rows,feederName),
-      rows,
-      savedAt: new Date().toISOString()
-    }).then(()=>{
-      toast('☁️ Saved to Firebase. It will stay after refresh.', 3000);
-    });
-  }else{
-    toast('Firebase save function not found', 3000);
+  // Save to Firebase permanently
+  if(typeof fbSaveUploadedFeeder==='function'){
+    fbSaveUploadedFeeder(key, feederName, rows, fileName);
   }
 }
 
@@ -2459,216 +2449,107 @@ function showFbStatus(type, text){
 }
 
 function fbSet(path, data){
-  showFbStatus("saving");
-  return fetch(`${FIREBASE_URL}/${path}.json`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
+  return fetch(`${FIREBASE_URL}/${path}.json`,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
   })
-  .then(res=>{
-    if(!res.ok) throw new Error("Firebase write failed");
-    showFbStatus("saved");
-    return res.json();
-  })
-  .catch(err=>{
-    console.error(err);
-    showFbStatus("error");
-  });
+  .then(res=>{if(!res.ok)throw new Error('HTTP '+res.status);showFbStatus('saved');return res.json();})
+  .catch(err=>{console.error('Firebase write error:',err);showFbStatus('error');});
 }
 
 function fbGet(path){
-  showFbStatus("loading");
   return fetch(`${FIREBASE_URL}/${path}.json`)
-    .then(res=>{
-      if(!res.ok) throw new Error("Firebase read failed");
-      return res.json();
-    })
-    .then(data=>{
-      showFbStatus("saved");
-      return data;
-    })
-    .catch(err=>{
-      console.error(err);
-      showFbStatus("error");
-      return null;
-    });
+    .then(res=>{if(!res.ok)throw new Error('HTTP '+res.status);return res.json();})
+    .catch(err=>{console.error('Firebase read error:',err);showFbStatus('error');return null;});
 }
 
-/* Save feeder status to Firebase */
-function fbSaveFeederStatus(fn, status){
-  return fbSet(`feeders/${safeFbKey(fn)}/status`, status);
+// ── Save feeder status ──
+function fbSaveFeederStatus(fn,status){
+  fbSet(`feeders/${safeFbKey(fn)}/status`,status);
 }
 
-/* Load feeder status from Firebase */
+// ── Load feeder statuses ──
 function fbLoadFeederStatuses(){
-  fbGet("feeders").then(data=>{
-    if(!data) return;
-
-    Object.keys(data).forEach(key=>{
-      const fn = decodeURIComponent(key);
-      const status = data[key]?.status;
-
-      if(!status) return;
-      if(typeof feederStatus === "undefined") return;
-
-      feederStatus[fn] = status;
-
-      if(typeof setFeederStatus === "function"){
-        setFeederStatus(fn, status, null, true);
-      }
-    });
-
-    if(typeof updateFeederBadges === "function"){
-      updateFeederBadges();
-    }
-  });
-}
-
-/* Override existing setFeederStatus safely */
-const originalSetFeederStatus = window.setFeederStatus;
-
-window.setFeederStatus = function(fn, status, btnEl, skipFirebase){
-  feederStatus[fn] = status;
-
-  if(btnEl){
-    const bar = btnEl.closest(".fs-status-bar");
-    if(bar){
-      bar.querySelectorAll(".fs-status-btn").forEach(b=>{
-        b.classList.remove("active-live","active-breakdown","active-idle");
-      });
-      btnEl.classList.add("active-" + status);
-    }
-  }
-
-  const layers = feederLayerMap[fn] || [];
-
-  layers.forEach(item=>{
-    if(!item.layer.setStyle) return;
-
-    const isLine =
-      item.reg.type === "lines" ||
-      (item.reg.type && item.reg.type.startsWith("fseg"));
-
-    if(!isLine) return;
-
-    const baseColor = item.cable === "OH" ? "#ff9800" : "#2196f3";
-
-    if(status === "live"){
-      item.layer.setStyle({
-        color: baseColor,
-        weight: 5.5,
-        opacity: 0.92
-      });
-
-      if(typeof safelyManageClass === "function"){
-        safelyManageClass(item.layer, "feeder-breakdown", false);
-      }
-
-      if(item.layer.flowLayer){
-        item.layer.flowLayer.options.className = "feeder-flow-overlay";
-        if(typeof safelyManageClass === "function"){
-          safelyManageClass(item.layer.flowLayer, "hidden-flow", false);
-        }
-      }
-    }
-
-    else if(status === "breakdown"){
-      item.layer.setStyle({
-        color: "#ff1744",
-        weight: 7,
-        opacity: 1
-      });
-
-      if(typeof safelyManageClass === "function"){
-        safelyManageClass(item.layer, "feeder-breakdown", true);
-      }
-
-      if(item.layer.flowLayer){
-        item.layer.flowLayer.options.className = "feeder-flow-overlay hidden-flow";
-        if(typeof safelyManageClass === "function"){
-          safelyManageClass(item.layer.flowLayer, "hidden-flow", true);
-        }
-      }
-    }
-
-    else if(status === "idle"){
-      item.layer.setStyle({
-        color: "#9e9e9e",
-        weight: 5,
-        opacity: 0.6
-      });
-
-      if(typeof safelyManageClass === "function"){
-        safelyManageClass(item.layer, "feeder-breakdown", false);
-      }
-
-      if(item.layer.flowLayer){
-        item.layer.flowLayer.options.className = "feeder-flow-overlay hidden-flow";
-        if(typeof safelyManageClass === "function"){
-          safelyManageClass(item.layer.flowLayer, "hidden-flow", true);
-        }
-      }
-    }
-  });
-
-  document.querySelectorAll(`.fi-btn[data-feeder="${fn}"]`).forEach(btn=>{
-    btn.classList.remove("fi-active");
-    if(btn.classList.contains("fi-" + status)){
-      btn.classList.add("fi-active");
-    }
-  });
-
-  if(typeof updateFeederBadges === "function"){
-    updateFeederBadges();
-  }
-
-  if(!skipFirebase){
-    fbSaveFeederStatus(fn, status);
-  }
-
-  if(typeof toast === "function"){
-    toast(`${fn.split("→")[1]?.trim() || fn}: ${status.toUpperCase()}`);
-  }
-};
-
-
-function fbLoadUploadedFiles(){
-  if(typeof fbGet!=='function')return;
-  fbGet('uploadedFeeders').then(data=>{
+  fbGet('feeders').then(data=>{
     if(!data)return;
-    const sel=document.getElementById('dfFileSelect');
-
-    Object.keys(data).forEach(k=>{
-      const item=data[k];
-      if(!item||!item.rows||!item.rows.length)return;
-      const fileKey=item.fileName||k;
-      const feederName=item.feederName||fileKey.replace(/\.[^.]+$/,'');
-      const section=item.section||getSectionFromRows(item.rows,feederName);
-
-      uploadedFiles[fileKey]={fileName:fileKey,feederName,section,rows:item.rows};
-      feederSectionMap[feederName]=section;
-
-      if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
-        const opt=document.createElement('option');
-        opt.value=fileKey;
-        opt.textContent=section+' — '+fileKey+' ('+feederName.substring(0,20)+')';
-        sel.appendChild(opt);
-      }
-
-      renderUploadedRows(item.rows,fileKey);
+    Object.keys(data).forEach(key=>{
+      const status=data[key]?.status;
+      if(!status)return;
+      feederStatus[key]=status;
+      if(typeof setFeederStatus==='function')setFeederStatus(key,status,null,true);
     });
-
-    buildFeederChecks();
-    updateCounts();
-    toast('Firebase uploaded feeders restored',2500);
   });
 }
 
-/* Auto-load Firebase after map/code finishes */
+// ── Save uploaded feeder (split rows into chunks to avoid 10MB limit) ──
+function fbSaveUploadedFeeder(key,feederName,rows,fileName){
+  const payload={
+    meta:{feederName,fileName,savedAt:new Date().toISOString(),rowCount:rows.length},
+    rows:rows
+  };
+  const payloadStr=JSON.stringify(payload);
+  // Firebase RTDB free plan: 256MB storage, 10GB/month. Single node limit 32MB.
+  // Warn if very large but try anyway
+  if(payloadStr.length>5000000){
+    console.warn('Large payload:',payloadStr.length,'bytes for',feederName);
+  }
+  showFbStatus('saving');
+  fbSet(`uploadedFeeders/${safeFbKey(key)}`,payload).then(()=>{
+    toast('☁️ Saved permanently to Firebase',3000);
+    showFbStatus('saved');
+  });
+}
+
+// ── Load all uploaded feeders on startup ──
+function fbLoadUploadedFiles(){
+  showFbStatus('loading');
+  fbGet('uploadedFeeders').then(data=>{
+    if(!data){showFbStatus('none');return;}
+    const keys=Object.keys(data);
+    if(!keys.length){showFbStatus('none');return;}
+    const sel=document.getElementById('dfFileSelect');
+    let loaded=0;
+    keys.forEach(k=>{
+      try{
+        const item=data[k];
+        if(!item||!item.rows||!item.rows.length)return;
+        const meta=item.meta||{};
+        const fileKey=meta.fileName||k;
+        const feederName=meta.feederName||fileKey.replace(/\.[^.]+$/,'');
+        // Store in uploadedFiles so DEL button works
+        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows:item.rows};
+        // Add to dropdown
+        if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
+          const opt=document.createElement('option');
+          opt.value=fileKey;
+          opt.textContent=fileKey.substring(0,30)+' ('+feederName.substring(0,20)+')';
+          sel.appendChild(opt);
+        }
+        // Render on map
+        renderUploadedRows(item.rows,fileKey);
+        loaded++;
+      }catch(err){
+        console.error('Error loading feeder from Firebase:',k,err);
+      }
+    });
+    if(loaded>0){
+      buildFeederChecks();
+      updateCounts();
+      feederNames.forEach(fn=>attachSegmentDistanceClick(fn));
+      toast('☁️ '+loaded+' feeder(s) restored from Firebase',3000);
+      showFbStatus('saved');
+    }else{
+      showFbStatus('none');
+    }
+  });
+}
+
+// ── Auto-load after map fully initialised (wait for all static data) ──
 setTimeout(()=>{
   fbLoadFeederStatuses();
   fbLoadUploadedFiles();
-}, 2500);
+}, 3500);
 </script>
 </body>
 </html>
