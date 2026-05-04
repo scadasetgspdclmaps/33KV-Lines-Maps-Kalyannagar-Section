@@ -1134,8 +1134,13 @@ function popup(feat,regEntry){
   return `${headerId}<table class="popup-table">${rows}</table>${statusBar}`;
 }
 
-function escJS(s){return String(s??'').replace(/\/g,'\\').replace(/'/g,"\'").replace(/"/g,'&quot;').replace(/
-/g,' ');}
+function escJS(s){
+  return String(s || '')
+    .split('\\').join('\\\\')
+    .split("'").join("\\'")
+    .split('"').join('&quot;')
+    .split('\n').join(' ');
+}
 
 function feederRoutePopup(feat, regEntry, feederName, cableType, layer, latlng){
   const p=feat.properties||{};
