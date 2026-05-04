@@ -2482,23 +2482,70 @@ function fbLoadFeederStatuses(){
   });
 }
 
-// ── Save uploaded feeder (split rows into chunks to avoid 10MB limit) ──
-function fbSaveUploadedFeeder(key,feederName,rows,fileName){
-  const payload={
-    meta:{feederName,fileName,savedAt:new Date().toISOString(),rowCount:rows.length},
-    rows:rows
-  };
-  const payloadStr=JSON.stringify(payload);
-  // Firebase RTDB free plan: 256MB storage, 10GB/month. Single node limit 32MB.
-  // Warn if very large but try anyway
-  if(payloadStr.length>5000000){
-    console.warn('Large payload:',payloadStr.length,'bytes for',feederName);
-  }
-  showFbStatus('saving');
-  fbSet(`uploadedFeeders/${safeFbKey(key)}`,payload).then(()=>{
-    toast('☁️ Saved permanently to Firebase',3000);
-    showFbStatus('saved');
+// ── Sanitize row keys for Firebase (no . # $ / [ ] in keys) ──
+function sanitizeRowsForFb(rows){
+  return rows.map(row=>{
+    const clean={};
+    Object.keys(row).forEach(k=>{
+      // Sanitize key: replace forbidden chars, trim, limit length
+      const safeKey=String(k)
+        .replace(/[.#$\[\]\/]/g,'_')
+        .replace(/\s+/g,'_')
+        .replace(/_+/g,'_')
+        .replace(/^_|_$/g,'')
+        .substring(0,100)||'col_'+Math.random().toString(36).slice(2,6);
+      // Sanitize value: ensure it's a primitive
+      let val=row[k];
+      if(val===undefined||val===null)val='';
+      else if(typeof val==='object'){
+        // Handle Date objects from XLSX
+        if(val instanceof Date)val=val.toISOString();
+        else val=String(val);
+      }else val=String(val);
+      clean[safeKey]=val;
+    });
+    return clean;
   });
+}
+
+// ── Save uploaded feeder to Firebase ──
+function fbSaveUploadedFeeder(key,feederName,rows,fileName){
+  showFbStatus('saving');
+  try{
+    // Sanitize rows before sending — Firebase rejects keys with . # $ / [ ]
+    const cleanRows=sanitizeRowsForFb(rows);
+    const payload={
+      meta:{feederName,fileName,savedAt:new Date().toISOString(),rowCount:cleanRows.length},
+      rows:cleanRows
+    };
+    // Validate JSON before sending
+    const payloadStr=JSON.stringify(payload);
+    JSON.parse(payloadStr); // will throw if invalid
+    const path=`uploadedFeeders/${safeFbKey(key)}`;
+    fetch(`${FIREBASE_URL}/${path}.json`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:payloadStr
+    })
+    .then(res=>{
+      if(!res.ok)return res.text().then(t=>{throw new Error('HTTP '+res.status+': '+t);});
+      return res.json();
+    })
+    .then(()=>{
+      toast('☁️ Saved to Firebase — survives refresh',3000);
+      showFbStatus('saved');
+      console.log('Firebase save OK:',path);
+    })
+    .catch(err=>{
+      console.error('Firebase save error:',err);
+      showFbStatus('error');
+      toast('⚠️ Cloud save failed: '+err.message,4000);
+    });
+  }catch(err){
+    console.error('JSON error before save:',err);
+    showFbStatus('error');
+    toast('⚠️ Data error: '+err.message,4000);
+  }
 }
 
 // ── Load all uploaded feeders on startup ──
