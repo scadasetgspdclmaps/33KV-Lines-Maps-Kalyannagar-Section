@@ -2482,90 +2482,90 @@ function fbLoadFeederStatuses(){
   });
 }
 
-// ── Sanitize row keys for Firebase (no . # $ / [ ] in keys) ──
-function sanitizeRowsForFb(rows){
-  return rows.map(row=>{
-    const clean={};
-    Object.keys(row).forEach(k=>{
-      // Sanitize key: replace forbidden chars, trim, limit length
-      const safeKey=String(k)
-        .replace(/[.#$\[\]\/]/g,'_')
-        .replace(/\s+/g,'_')
-        .replace(/_+/g,'_')
-        .replace(/^_|_$/g,'')
-        .substring(0,100)||'col_'+Math.random().toString(36).slice(2,6);
-      // Sanitize value: ensure it's a primitive
-      let val=row[k];
-      if(val===undefined||val===null)val='';
-      else if(typeof val==='object'){
-        // Handle Date objects from XLSX
-        if(val instanceof Date)val=val.toISOString();
-        else val=String(val);
-      }else val=String(val);
-      clean[safeKey]=val;
-    });
-    return clean;
-  });
-}
-
 // ── Save uploaded feeder to Firebase ──
+// Rows stored as a single escaped JSON string to avoid ALL key sanitization issues
 function fbSaveUploadedFeeder(key,feederName,rows,fileName){
   showFbStatus('saving');
   try{
-    // Sanitize rows before sending — Firebase rejects keys with . # $ / [ ]
-    const cleanRows=sanitizeRowsForFb(rows);
+    // Convert every value to string to ensure clean JSON
+    const cleanRows=rows.map(row=>{
+      const r={};
+      Object.keys(row).forEach(k=>{
+        let v=row[k];
+        if(v===undefined||v===null)v='';
+        else if(v instanceof Date)v=v.toISOString();
+        else v=String(v);
+        r[String(k)]=v;
+      });
+      return r;
+    });
+    // Store rows as a plain string — completely avoids Firebase key restrictions
     const payload={
-      meta:{feederName,fileName,savedAt:new Date().toISOString(),rowCount:cleanRows.length},
-      rows:cleanRows
+      feederName:String(feederName),
+      fileName:String(fileName),
+      savedAt:new Date().toISOString(),
+      rowCount:cleanRows.length,
+      rowsJson:JSON.stringify(cleanRows)  // rows as string, not nested object
     };
-    // Validate JSON before sending
-    const payloadStr=JSON.stringify(payload);
-    JSON.parse(payloadStr); // will throw if invalid
-    const path=`uploadedFeeders/${safeFbKey(key)}`;
-    fetch(`${FIREBASE_URL}/${path}.json`,{
+    const path='uploadedFeeders/'+safeFbKey(key);
+    const body=JSON.stringify(payload);
+    fetch(FIREBASE_URL+'/'+path+'.json',{
       method:'PUT',
       headers:{'Content-Type':'application/json'},
-      body:payloadStr
+      body:body
     })
-    .then(res=>{
-      if(!res.ok)return res.text().then(t=>{throw new Error('HTTP '+res.status+': '+t);});
+    .then(function(res){
+      if(!res.ok)return res.text().then(function(t){throw new Error('HTTP '+res.status+': '+t.substring(0,100));});
       return res.json();
     })
-    .then(()=>{
+    .then(function(){
       toast('☁️ Saved to Firebase — survives refresh',3000);
       showFbStatus('saved');
-      console.log('Firebase save OK:',path);
+      console.log('Firebase save OK:',path,'rows:',cleanRows.length);
     })
-    .catch(err=>{
-      console.error('Firebase save error:',err);
+    .catch(function(err){
+      console.error('Firebase save error:',err.message);
       showFbStatus('error');
       toast('⚠️ Cloud save failed: '+err.message,4000);
     });
   }catch(err){
-    console.error('JSON error before save:',err);
+    console.error('Firebase prep error:',err.message);
     showFbStatus('error');
-    toast('⚠️ Data error: '+err.message,4000);
+    toast('⚠️ Data prep error: '+err.message,4000);
   }
 }
 
 // ── Load all uploaded feeders on startup ──
 function fbLoadUploadedFiles(){
   showFbStatus('loading');
-  fbGet('uploadedFeeders').then(data=>{
+  fetch(FIREBASE_URL+'/uploadedFeeders.json')
+  .then(function(res){
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    return res.json();
+  })
+  .then(function(data){
     if(!data){showFbStatus('none');return;}
     const keys=Object.keys(data);
     if(!keys.length){showFbStatus('none');return;}
     const sel=document.getElementById('dfFileSelect');
     let loaded=0;
-    keys.forEach(k=>{
+    keys.forEach(function(k){
       try{
         const item=data[k];
-        if(!item||!item.rows||!item.rows.length)return;
-        const meta=item.meta||{};
-        const fileKey=meta.fileName||k;
-        const feederName=meta.feederName||fileKey.replace(/\.[^.]+$/,'');
+        if(!item)return;
+        const fileKey=item.fileName||k;
+        const feederName=item.feederName||fileKey.replace(/\.[^.]+$/,'');
+        // Parse rows back from string
+        let rows=[];
+        if(item.rowsJson){
+          try{rows=JSON.parse(item.rowsJson);}
+          catch(e){console.error('Row parse error for',k,e);return;}
+        }else if(item.rows&&item.rows.length){
+          rows=item.rows; // backward compat
+        }
+        if(!rows.length)return;
         // Store in uploadedFiles so DEL button works
-        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows:item.rows};
+        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows};
         // Add to dropdown
         if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
           const opt=document.createElement('option');
@@ -2574,21 +2574,25 @@ function fbLoadUploadedFiles(){
           sel.appendChild(opt);
         }
         // Render on map
-        renderUploadedRows(item.rows,fileKey);
+        renderUploadedRows(rows,fileKey);
         loaded++;
       }catch(err){
-        console.error('Error loading feeder from Firebase:',k,err);
+        console.error('Error loading feeder from Firebase:',k,err.message);
       }
     });
     if(loaded>0){
       buildFeederChecks();
       updateCounts();
-      feederNames.forEach(fn=>attachSegmentDistanceClick(fn));
+      feederNames.forEach(function(fn){attachSegmentDistanceClick(fn);});
       toast('☁️ '+loaded+' feeder(s) restored from Firebase',3000);
       showFbStatus('saved');
     }else{
       showFbStatus('none');
     }
+  })
+  .catch(function(err){
+    console.error('Firebase load error:',err.message);
+    showFbStatus('error');
   });
 }
 
