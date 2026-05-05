@@ -618,6 +618,37 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
   background:rgba(255,23,68,.06);font-family:var(--mono);transition:.2s;flex-shrink:0}
 .fn-del-btn:hover{background:rgba(255,23,68,.2);color:#ff4466}
 
+/* ══ HIERARCHY PANEL ══ */
+.hier-div,.hier-sub,.hier-sec{margin-bottom:1px}
+.hier-div-hd,.hier-sub-hd,.hier-sec-hd{display:flex;align-items:center;gap:5px;padding:5px 6px;border-radius:7px;cursor:default;user-select:none;transition:background .18s}
+.hier-div-hd{background:rgba(0,200,255,.08);border:1px solid rgba(0,200,255,.12);margin-bottom:2px}
+.hier-div-hd:hover{background:rgba(0,200,255,.14)}
+.hier-sub-hd{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);margin:2px 0 2px 8px}
+.hier-sub-hd:hover{background:rgba(0,200,255,.07)}
+.hier-sec-hd{background:rgba(255,255,255,.02);border:none;margin:1px 0 1px 16px;padding:3px 5px}
+.hier-sec-hd:hover{background:rgba(0,200,255,.05)}
+.hier-div-body{padding-left:4px}
+.hier-sub-body{padding-left:4px}
+.hier-sec-body{padding-left:8px}
+.hier-div-body.collapsed,.hier-sub-body.collapsed,.hier-sec-body.collapsed{display:none}
+.hier-arrow{font-size:9px;color:rgba(0,200,255,.5);width:10px;flex-shrink:0;cursor:pointer;transition:transform .2s}
+.hier-div-hd.collapsed .hier-arrow,.hier-sub-hd.collapsed .hier-arrow,.hier-sec-hd.collapsed .hier-arrow{transform:rotate(-90deg)}
+.hier-color-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.hier-div-label{font-family:var(--mono);font-size:8.5px;color:var(--live);letter-spacing:.8px;flex:1;font-weight:600}
+.hier-sub-label{font-family:var(--mono);font-size:8px;color:rgba(176,204,224,.7);letter-spacing:.5px;flex:1}
+.hier-sec-label{font-family:var(--mono);font-size:7.5px;color:rgba(176,204,224,.5);letter-spacing:.4px;flex:1}
+.hier-cnt{font-family:var(--mono);font-size:8px;color:var(--live);background:rgba(0,200,255,.1);padding:1px 5px;border-radius:8px;flex-shrink:0}
+/* Hierarchy checkbox */
+.hier-cb{width:13px;height:13px;border-radius:3px;border:1.5px solid rgba(0,200,255,.35);flex-shrink:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;background:rgba(255,255,255,.03)}
+.hier-cb:hover{border-color:var(--live);background:rgba(0,200,255,.1)}
+.hier-cb.checked{background:rgba(0,200,255,.25);border-color:var(--live)}
+.hier-cb.checked::after{content:'✓';font-size:9px;color:var(--live);line-height:1}
+.hier-cb.partial{background:rgba(0,200,255,.1);border-color:rgba(0,200,255,.5)}
+.hier-cb.partial::after{content:'–';font-size:10px;color:rgba(0,200,255,.7);line-height:1}
+/* Feeder rows inside hierarchy */
+.hier-sec-body .fr-row{margin:1px 0;padding:4px 6px 3px}
+.hier-sec-body .fr-bottom{padding-left:12px}
+
 /* ══ FIREBASE SYNC STATUS ══ */
 #fbStatus{position:fixed;bottom:46px;left:50%;transform:translateX(-50%);z-index:1600;
   font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:5px 14px;
@@ -889,6 +920,7 @@ const feederState={};
 const feederStatus={};
 const feederLayerMap={};
 const feederSectionMap={};
+const feederHierarchyMap={};  // fn → {division,sub_division,section}
 const LGstate={'ug-lines':true,'oh-lines':true,points:true,dp:true,ab:true,cut:true,ss33:true,ehts:true,fsegs:true};
 let cableFilter='all';
 let globalFeederFallback=true;
@@ -1362,8 +1394,15 @@ function setFeederStatus(fn,status,btnEl){
     else btn.classList.toggle('fr-id-act',btn.textContent.includes('Idle'));
   });
   document.querySelectorAll(`[id^="fbadge-"][data-feeder="${fn}"]`).forEach(el=>{
-    el.className='fr-badge fr-badge-'+status;
-    el.textContent=status==='live'?'⚡ LIVE':status==='breakdown'?'🔴 DOWN':'⏸ IDLE';
+    if(status==='live'){
+      el.style.display='none';
+      el.className='';
+      el.textContent='';
+    } else {
+      el.style.display='';
+      el.className='fr-badge fr-badge-'+status;
+      el.textContent=status==='breakdown'?'🔴 DOWN':'⏸ IDLE';
+    }
   });
   // Legacy fi-btn support
   document.querySelectorAll(`.fi-btn[data-feeder="${fn}"]`).forEach(btn=>{btn.classList.remove('fi-active');if(btn.classList.contains('fi-'+status))btn.classList.add('fi-active');});
@@ -1447,19 +1486,30 @@ function getSectionFromRows(rows, fallbackName){
 }
 
 
-// ── Global group definitions (section-specific) ──
-const GROUP_ORDER=['ERRAGADA (132KV)','JUBILEE HILLS','NIMS','ERRAGADA (33KV)','OTHER'];
-const GROUP_COLORS={
-  'ERRAGADA (132KV)':'#00c8ff','JUBILEE HILLS':'#ff9800',
-  'NIMS':'#00e676','ERRAGADA (33KV)':'#9c27b0','OTHER':'#78909c'
+// ── Hierarchy colors palette ──
+const HIER_DIV_COLORS=['#00c8ff','#ff9800','#00e676','#9c27b0','#2196f3','#f44336','#ffeb3b','#e91e63'];
+const HIER_SEC_COLORS=['#00c8ff','#ff9800','#00e676','#9c27b0','#2196f3','#f44336','#ffeb3b','#e91e63','#4caf50','#ff5722','#00bcd4','#cddc39'];
+
+// Static feeder → hardcoded hierarchy (Kalyannagar section)
+const STATIC_FEEDER_HIERARCHY={
+  division:'BANJARA HILLS DIVISION',
+  sub_division:'KALYANAGAR SUB-DIVISION',
+  section:'KALYANNAGAR SECTION'
 };
-function SECTION_GROUPS(up){
-  if(up.includes('JUBILEE HILLS')||up.includes('JUBILEEHILLS'))return 'JUBILEE HILLS';
-  if(up.includes('NIMS'))return 'NIMS';
-  if(up.includes('ERRAGADA')||up.includes('ERRAGADDA'))
-    return up.includes('132')?'ERRAGADA (132KV)':'ERRAGADA (33KV)';
-  return 'OTHER';
+
+// feederSectionMap: populated by renderUploadedRows for uploaded feeders
+// For static feeders, we return the hardcoded hierarchy
+function getFeederHierarchy(fn){
+  // Check if this feeder has uploaded hierarchy data
+  if(feederHierarchyMap[fn])return feederHierarchyMap[fn];
+  // All static feeders → Kalyannagar
+  return STATIC_FEEDER_HIERARCHY;
 }
+
+// ── Legacy compatibility (kept for getFeederColor / particles) ──
+const GROUP_ORDER=['BANJARA HILLS DIVISION','OTHER'];
+const GROUP_COLORS={'BANJARA HILLS DIVISION':'#00c8ff','OTHER':'#78909c'};
+function SECTION_GROUPS(up){ return 'OTHER'; } // not used anymore
 
 function extractEHT(fn){
   // Extract source EHT from feeder name e.g. "ERRAGADA → KALYANNAGAR" → "ERRAGADA"
@@ -1469,143 +1519,238 @@ function extractEHT(fn){
 }
 
 function getFeederColor(fn){
-  // Return feeder group color
-  for(const grp of GROUP_ORDER){
-    const members=_lastGroups[grp]||[];
-    const m=members.find(x=>x.fn===fn);
-    if(m)return m.color;
-  }
-  return '#78909c';
+  // _lastGroups now stores flat 'ALL' array from buildHierarchyTree
+  const all=_lastGroups['ALL']||[];
+  const m=all.find(x=>x.fn===fn);
+  return m?m.color:'#78909c';
 }
 
 const FCOLORS=['#00c8ff','#ff9800','#00e676','#9c27b0','#2196f3','#f44336','#ffeb3b','#e91e63','#4caf50','#ff5722','#00bcd4','#cddc39'];
 let _lastGroups={};
 let _feederOrder=[];  // persisted drag order
 
+// ── Helper: build hierarchy tree from all feederNames ──
+function buildHierarchyTree(){
+  // tree: { divName → { subName → { secName → [{fn,color}] } } }
+  const tree={};
+  let ci=0;
+  [...feederNames].sort().forEach(fn=>{
+    feederState[fn]=(feederState[fn]!==undefined)?feederState[fn]:true;
+    const h=getFeederHierarchy(fn);
+    const div=(h.division||'UNKNOWN DIVISION').toUpperCase();
+    const sub=(h.sub_division||'UNKNOWN SUB-DIVISION').toUpperCase();
+    const sec=(h.section||'UNKNOWN SECTION').toUpperCase();
+    if(!tree[div])tree[div]={};
+    if(!tree[div][sub])tree[div][sub]={};
+    if(!tree[div][sub][sec])tree[div][sub][sec]=[];
+    tree[div][sub][sec].push({fn,color:FCOLORS[ci%FCOLORS.length]});
+    ci++;
+  });
+  return tree;
+}
+
+// ── Hierarchy toggle helpers ──
+function toggleDivision(divKey,show){
+  [...feederNames].forEach(fn=>{
+    const h=getFeederHierarchy(fn);
+    if((h.division||'').toUpperCase()===divKey){
+      feederState[fn]=show;
+    }
+  });
+  requestVisibilityUpdate();
+  buildFeederChecks();
+}
+function toggleSubDiv(divKey,subKey,show){
+  [...feederNames].forEach(fn=>{
+    const h=getFeederHierarchy(fn);
+    if((h.division||'').toUpperCase()===divKey&&(h.sub_division||'').toUpperCase()===subKey){
+      feederState[fn]=show;
+    }
+  });
+  requestVisibilityUpdate();
+  buildFeederChecks();
+}
+function toggleSection(divKey,subKey,secKey,show){
+  [...feederNames].forEach(fn=>{
+    const h=getFeederHierarchy(fn);
+    if((h.division||'').toUpperCase()===divKey&&(h.sub_division||'').toUpperCase()===subKey&&(h.section||'').toUpperCase()===secKey){
+      feederState[fn]=show;
+    }
+  });
+  requestVisibilityUpdate();
+  buildFeederChecks();
+}
+
+// ── Check if all/any feeders in a group are visible ──
+function getGroupState(fns){
+  const all=fns.every(fn=>feederState[fn]!==false);
+  const none=fns.every(fn=>feederState[fn]===false);
+  return all?'all':none?'none':'partial';
+}
+
+// ── Hierarchy header checkbox HTML ──
+function hierCheckbox(state,onclick){
+  const checked=state==='all';
+  const partial=state==='partial';
+  return `<span class="hier-cb ${checked?'checked':''} ${partial?'partial':''}" onclick="${onclick}" title="${checked?'Hide all':'Show all'}"></span>`;
+}
+
 function buildFeederChecks(){
   const container=document.getElementById('feederChecks');
   if(!container)return;container.innerHTML='';
 
-  const groups={};
-  GROUP_ORDER.forEach(g=>{groups[g]=[];});
-  let ci=0;
-  [...feederNames].sort().forEach((fn)=>{
-    feederState[fn]=(feederState[fn]!==undefined)?feederState[fn]:true;
-    const up=fn.toUpperCase();
-    let grp='OTHER';
-    // section-specific grouping
-    if(typeof SECTION_GROUPS==='function')grp=SECTION_GROUPS(up)||'OTHER';
-    else{
-      for(const g of GROUP_ORDER){
-        if(g==='OTHER')continue;
-        if(up.includes(g.replace(/\s*\(.*\)/,'').toUpperCase())){grp=g;break;}
-      }
-    }
-    if(!groups[grp])groups[grp]=[];
-    groups[grp].push({fn,color:FCOLORS[ci%FCOLORS.length]});
-    ci++;
-  });
-  _lastGroups=groups;
+  const tree=buildHierarchyTree();
 
-  // Apply saved order if exists
-  const orderedFeeders=_feederOrder.length
-    ? _feederOrder.filter(fn=>feederNames.has(fn)).concat([...feederNames].filter(fn=>!_feederOrder.includes(fn)))
-    : null;
+  // Keep a flat lookup for getFeederColor / particles
+  const allMembers=[];
+  Object.values(tree).forEach(subs=>Object.values(subs).forEach(secs=>Object.values(secs).forEach(ms=>allMembers.push(...ms))));
+  _lastGroups={'ALL':allMembers};
 
   let globalIdx=0;
-  GROUP_ORDER.forEach(grpKey=>{
-    const members=groups[grpKey];
-    if(!members||!members.length)return;
-    const grpDiv=document.createElement('div');
-    grpDiv.className='fgrp';grpDiv.dataset.group=grpKey;
+  let divCI=0;
 
-    const hd=document.createElement('div');hd.className='fgrp-hd';
-    hd.innerHTML=`<span class="fgrp-arrow">▾</span>
-      <div class="fgrp-dot" style="background:${GROUP_COLORS[grpKey]||'#78909c'}"></div>
-      <span class="fgrp-label">${grpKey}</span>
-      <span class="fgrp-cnt">${members.length}</span>`;
-    const body=document.createElement('div');body.className='fgrp-body';body.style.maxHeight='2000px';
+  Object.keys(tree).sort().forEach(divKey=>{
+    const divColor=HIER_DIV_COLORS[divCI++%HIER_DIV_COLORS.length];
+    const divFns=[];
+    Object.values(tree[divKey]).forEach(subs=>Object.values(subs).forEach(ms=>ms.forEach(m=>divFns.push(m.fn))));
+    const divState=getGroupState(divFns);
 
-    hd.onclick=()=>{
-      hd.classList.toggle('collapsed');body.classList.toggle('collapsed');
-      body.style.maxHeight=body.classList.contains('collapsed')?'0':body.scrollHeight+'px';
+    // ── Division node ──
+    const divEl=document.createElement('div');
+    divEl.className='hier-div';divEl.dataset.div=divKey;
+
+    const divHd=document.createElement('div');divHd.className='hier-div-hd';
+    divHd.innerHTML=`
+      <span class="hier-arrow hier-div-arrow">▾</span>
+      <div class="hier-color-dot" style="background:${divColor}"></div>
+      ${hierCheckbox(divState,`toggleDivision('${divKey}',${divState!=='all'})`)}
+      <span class="hier-div-label">${divKey}</span>
+      <span class="hier-cnt">${divFns.length}</span>`;
+    const divBody=document.createElement('div');divBody.className='hier-div-body';
+
+    divHd.querySelector('.hier-div-arrow').onclick=(e)=>{
+      e.stopPropagation();
+      divHd.classList.toggle('collapsed');
+      divBody.classList.toggle('collapsed');
     };
-    grpDiv.appendChild(hd);
+    divEl.appendChild(divHd);
 
-    const displayMembers=orderedFeeders
-      ? orderedFeeders.filter(fn=>members.some(m=>m.fn===fn)).map(fn=>members.find(m=>m.fn===fn))
-      : members;
+    let subCI=0;
+    Object.keys(tree[divKey]).sort().forEach(subKey=>{
+      const subColor=HIER_DIV_COLORS[(divCI-1+subCI)%HIER_DIV_COLORS.length];subCI++;
+      const subFns=[];
+      Object.values(tree[divKey][subKey]).forEach(ms=>ms.forEach(m=>subFns.push(m.fn)));
+      const subState=getGroupState(subFns);
 
-    displayMembers.forEach(({fn,color})=>{
-      if(!fn)return;
-      const fe=fn.replace(/'/g,"\\'");
-      const idx=globalIdx++;
-      const status=feederStatus[fn]||'live';
-      const eht=extractEHT(fn);
-      const shortName=fn.length>28?fn.substring(0,26)+'…':fn;
-      const togOn=feederState[fn]!==false;
+      // ── Sub-division node ──
+      const subEl=document.createElement('div');
+      subEl.className='hier-sub';subEl.dataset.sub=subKey;
 
-      const row=document.createElement('div');
-      row.className='fr-row';row.dataset.fname=fn.toLowerCase();row.dataset.fn=fn;
-      row.draggable=true;
+      const subHd=document.createElement('div');subHd.className='hier-sub-hd';
+      subHd.innerHTML=`
+        <span class="hier-arrow hier-sub-arrow">▾</span>
+        <div class="hier-color-dot" style="background:${subColor};opacity:.75"></div>
+        ${hierCheckbox(subState,`toggleSubDiv('${divKey}','${subKey}',${subState!=='all'})`)}
+        <span class="hier-sub-label">${subKey}</span>
+        <span class="hier-cnt">${subFns.length}</span>`;
+      const subBody=document.createElement('div');subBody.className='hier-sub-body';
 
-      row.innerHTML=`
-        <div class="fr-top">
-          <span class="fr-drag" title="Drag to reorder">⠿</span>
-          <div class="fr-dot" style="background:${color}"></div>
-          <span class="fr-name focus-txt" title="${fn}" onclick="focusFeeder('${fe}')">${shortName}</span>
-          <span class="fr-eht">${eht}</span>
-          <span class="fr-badge fr-badge-${status}" id="fbadge-${idx}" data-feeder="${fe}">${status==='live'?'⚡':status==='breakdown'?'🔴':'⏸'} ${status.toUpperCase()}</span>
-          <div class="fr-actions">
-            <span class="fr-act" title="Edit Mode" onclick="quickEditMode('${fe}',event)">✏</span>
-            <span class="fr-act stats" title="Stats" onclick="toggleFeederStatsByName('${fe}',event)">📊</span>
-            <span class="fr-act del" title="Delete" onclick="deleteFeederFromMap('${fe}',event)">✕</span>
-          </div>
-          <div class="tog-mini ${togOn?'on':''}" id="ftog-${idx}" onclick="toggleSingleFeeder('${fe}',${idx},event)"></div>
-        </div>
-        <div class="fr-bottom">
-          <span class="fr-stat-mini" id="fmini-${idx}">—</span>
-          <div class="fr-status-btns">
-            <button class="fr-sb ${status==='live'?'fr-live-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','live',this)">⚡ Live</button>
-            <button class="fr-sb ${status==='breakdown'?'fr-dn-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','breakdown',this)">🔴 Down</button>
-            <button class="fr-sb ${status==='idle'?'fr-id-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','idle',this)">⏸ Idle</button>
-          </div>
-        </div>`;
+      subHd.querySelector('.hier-sub-arrow').onclick=(e)=>{
+        e.stopPropagation();
+        subHd.classList.toggle('collapsed');
+        subBody.classList.toggle('collapsed');
+      };
+      subEl.appendChild(subHd);
 
-      // Drag to reorder
-      row.addEventListener('dragstart',e=>{
-        e.dataTransfer.setData('text/plain',fn);
-        row.classList.add('fr-dragging');
+      Object.keys(tree[divKey][subKey]).sort().forEach(secKey=>{
+        const members=tree[divKey][subKey][secKey];
+        const secFns=members.map(m=>m.fn);
+        const secState=getGroupState(secFns);
+
+        // ── Section node ──
+        const secEl=document.createElement('div');
+        secEl.className='hier-sec';secEl.dataset.sec=secKey;
+
+        const secHd=document.createElement('div');secHd.className='hier-sec-hd';
+        secHd.innerHTML=`
+          <span class="hier-arrow hier-sec-arrow">▾</span>
+          ${hierCheckbox(secState,`toggleSection('${divKey}','${subKey}','${secKey}',${secState!=='all'})`)}
+          <span class="hier-sec-label">${secKey}</span>
+          <span class="hier-cnt">${secFns.length}</span>`;
+        const secBody=document.createElement('div');secBody.className='hier-sec-body';
+
+        secHd.querySelector('.hier-sec-arrow').onclick=(e)=>{
+          e.stopPropagation();
+          secHd.classList.toggle('collapsed');
+          secBody.classList.toggle('collapsed');
+        };
+        secEl.appendChild(secHd);
+
+        members.forEach(({fn,color})=>{
+          if(!fn)return;
+          const fe=fn.replace(/'/g,"\\'");
+          const idx=globalIdx++;
+          const status=feederStatus[fn]||'live';
+          const shortName=fn.length>30?fn.substring(0,28)+'…':fn;
+          const togOn=feederState[fn]!==false;
+          const showBadge=status!=='live';  // Only show badge for breakdown/idle
+
+          const row=document.createElement('div');
+          row.className='fr-row';row.dataset.fname=fn.toLowerCase();row.dataset.fn=fn;
+          row.draggable=true;
+
+          row.innerHTML=`
+            <div class="fr-top">
+              <span class="fr-drag" title="Drag to reorder">⠿</span>
+              <div class="fr-dot" style="background:${color}"></div>
+              <span class="fr-name focus-txt" title="${fn}" onclick="focusFeeder('${fe}')">${shortName}</span>
+              ${showBadge?`<span class="fr-badge fr-badge-${status}" id="fbadge-${idx}" data-feeder="${fe}">${status==='breakdown'?'🔴 DOWN':'⏸ IDLE'}</span>`:`<span id="fbadge-${idx}" data-feeder="${fe}" style="display:none"></span>`}
+              <div class="fr-actions">
+                <span class="fr-act" title="Edit Mode" onclick="quickEditMode('${fe}',event)">✏</span>
+                <span class="fr-act stats" title="Stats" onclick="toggleFeederStatsByName('${fe}',event)">📊</span>
+                <span class="fr-act del" title="Delete" onclick="deleteFeederFromMap('${fe}',event)">✕</span>
+              </div>
+              <div class="tog-mini ${togOn?'on':''}" id="ftog-${idx}" onclick="toggleSingleFeeder('${fe}',${idx},event)"></div>
+            </div>
+            <div class="fr-bottom">
+              <div class="fr-status-btns">
+                <button class="fr-sb ${status==='live'?'fr-live-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','live',this)">⚡ Live</button>
+                <button class="fr-sb ${status==='breakdown'?'fr-dn-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','breakdown',this)">🔴 Down</button>
+                <button class="fr-sb ${status==='idle'?'fr-id-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','idle',this)">⏸ Idle</button>
+              </div>
+            </div>`;
+
+          row.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',fn);row.classList.add('fr-dragging');});
+          row.addEventListener('dragend',()=>row.classList.remove('fr-dragging'));
+          row.addEventListener('dragover',e=>{e.preventDefault();row.classList.add('fr-drag-over');});
+          row.addEventListener('dragleave',()=>row.classList.remove('fr-drag-over'));
+          row.addEventListener('drop',e=>{
+            e.preventDefault();row.classList.remove('fr-drag-over');
+            const draggedFn=e.dataTransfer.getData('text/plain');
+            if(draggedFn===fn)return;
+            const allFns=[...feederNames];
+            const fromIdx=(_feederOrder.length?_feederOrder:allFns).indexOf(draggedFn);
+            const toIdx=(_feederOrder.length?_feederOrder:allFns).indexOf(fn);
+            if(!_feederOrder.length)_feederOrder=[...allFns];
+            _feederOrder.splice(fromIdx,1);
+            _feederOrder.splice(toIdx,0,draggedFn);
+            buildFeederChecks();
+            if(typeof fbSet==='function')fbSet('feederOrder',_feederOrder).catch(()=>{});
+          });
+
+          secBody.appendChild(row);
+        });
+
+        secEl.appendChild(secBody);
+        subBody.appendChild(secEl);
       });
-      row.addEventListener('dragend',()=>row.classList.remove('fr-dragging'));
-      row.addEventListener('dragover',e=>{e.preventDefault();row.classList.add('fr-drag-over');});
-      row.addEventListener('dragleave',()=>row.classList.remove('fr-drag-over'));
-      row.addEventListener('drop',e=>{
-        e.preventDefault();row.classList.remove('fr-drag-over');
-        const draggedFn=e.dataTransfer.getData('text/plain');
-        if(draggedFn===fn)return;
-        const allFns=[...feederNames];
-        const fromIdx=(_feederOrder.length?_feederOrder:allFns).indexOf(draggedFn);
-        const toIdx=(_feederOrder.length?_feederOrder:allFns).indexOf(fn);
-        if(!_feederOrder.length)_feederOrder=[...allFns];
-        _feederOrder.splice(fromIdx,1);
-        _feederOrder.splice(toIdx,0,draggedFn);
-        buildFeederChecks();
-        // Save order to Firebase
-        if(typeof fbSet==='function')fbSet('feederOrder',_feederOrder).catch(()=>{});
-      });
 
-      body.appendChild(row);
-
-      // Compute mini stats async
-      requestIdleCallback(()=>{
-        const el=document.getElementById('fmini-'+idx);if(!el)return;
-        const s=calcFeederStats(fn);
-        el.textContent=`UG ${s.ugKm.toFixed(2)}km · OH ${s.ohKm.toFixed(2)}km · ${s.poles} poles`;
-      },{timeout:1000});
+      subEl.appendChild(subBody);
+      divBody.appendChild(subEl);
     });
 
-    grpDiv.appendChild(body);container.appendChild(grpDiv);
+    divEl.appendChild(divBody);
+    container.appendChild(divEl);
   });
 }
 
@@ -1613,31 +1758,30 @@ function buildFeederChecks(){
 
 function filterFeeders(q){
   q=q.trim().toLowerCase();
-  document.querySelectorAll('#feederChecks .fgrp').forEach(grpDiv=>{
+  document.querySelectorAll('#feederChecks .hier-div').forEach(divEl=>{
     let anyVisible=false;
-    grpDiv.querySelectorAll('.ftog-row').forEach(row=>{
+    divEl.querySelectorAll('.fr-row').forEach(row=>{
       const match=!q||row.dataset.fname.includes(q);
       row.style.display=match?'':'none';
       if(match)anyVisible=true;
     });
-    grpDiv.style.display=anyVisible?'':'none';
-    // Auto-expand groups that have matches
+    divEl.style.display=anyVisible?'':'none';
+    // Auto-expand on search
     if(q&&anyVisible){
-      const hd=grpDiv.querySelector('.fgrp-hd');
-      const body=grpDiv.querySelector('.fgrp-body');
-      if(hd&&body&&hd.classList.contains('collapsed')){
+      divEl.querySelectorAll('.hier-div-hd,.hier-sub-hd,.hier-sec-hd').forEach(hd=>{
         hd.classList.remove('collapsed');
-        body.classList.remove('collapsed');
-        body.style.maxHeight=body.scrollHeight+'px';
-      }
+        const body=hd.nextElementSibling;
+        if(body)body.classList.remove('collapsed');
+      });
     }
   });
 }
 
 function toggleAllFeeders(show){
   globalFeederFallback=show;
-  [...feederNames].forEach((fn,i)=>{feederState[fn]=show;const tog=document.getElementById('ftog-'+i);if(tog)tog.classList.toggle('off',!show);});
+  [...feederNames].forEach((fn)=>{feederState[fn]=show;});
   requestVisibilityUpdate();
+  buildFeederChecks();
   toast(show?'All feeders shown':'All feeders hidden');
 }
 
@@ -2685,6 +2829,12 @@ function renderUploadedRows(rows,sourceFileName){
 
   Object.entries(feederMap).forEach(([feederName,feederRows])=>{
     feederSectionMap[feederName]=getSectionFromRows(feederRows,feederName);
+    // ── Build hierarchy from first row ──
+    const r0=feederRows[0]||{};
+    const hDiv=(_getRowVal(r0,'division','Division','DIVISION')||'').trim().toUpperCase()||'UNKNOWN DIVISION';
+    const hSub=(_getRowVal(r0,'sub_division','Sub Division','Sub-Division','Subdivision')||'').trim().toUpperCase()||'UNKNOWN SUB-DIVISION';
+    const hSec=(_getRowVal(r0,'section','Section','SECTION')||'').trim().toUpperCase()||'UNKNOWN SECTION';
+    feederHierarchyMap[feederName]={division:hDiv,sub_division:hSub,section:hSec};
     removeFeederLayers(feederName);
     if(!feederLayerMap[feederName])feederLayerMap[feederName]=[];
 
@@ -2827,7 +2977,7 @@ function deleteUploadedFeeder(){
   const {feederName}=uploadedFiles[key];
   if(!confirm('Delete feeder "'+feederName+'" from map and Firebase?'))return;
   removeFeederLayers(feederName);
-  feederNames.delete(feederName);delete feederState[feederName];delete feederSectionMap[feederName];delete uploadedFiles[key];
+  feederNames.delete(feederName);delete feederState[feederName];delete feederSectionMap[feederName];delete feederHierarchyMap[feederName];delete uploadedFiles[key];
   sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
   sel.value='';buildFeederChecks();updateCounts();
   if(typeof fbSet==='function') fbSet(`uploadedFeeders/${safeFbKey(key)}`,null);
@@ -2838,7 +2988,7 @@ function deleteFeederFromMap(fn,e){
   if(e)e.stopPropagation();
   if(!confirm('Delete feeder "'+fn+'" from map?'))return;
   if(focusedFeeder===fn)exitFocusedFeeder();
-  removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];delete feederSectionMap[fn];
+  removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];delete feederSectionMap[fn];delete feederHierarchyMap[fn];
   Object.keys(uploadedFiles).forEach(k=>{if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){delete uploadedFiles[k];document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove(); if(typeof fbSet==='function')fbSet(`uploadedFeeders/${safeFbKey(k)}`,null);}});
   buildFeederChecks();updateCounts();
   toast('🗑 Deleted: '+fn.substring(0,25),2500);
