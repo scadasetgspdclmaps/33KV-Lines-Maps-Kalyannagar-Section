@@ -498,6 +498,90 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 /* ══ EDIT MODE marker highlight ══ */
 .edit-mode-point{filter:drop-shadow(0 0 7px rgba(0,200,255,.9))!important;cursor:crosshair!important;transition:filter .2s}
 
+
+/* ══ V6 NEON SCADA LINE GLOW ══ */
+.fv6-ug{filter:drop-shadow(0 0 3px #2196f3) drop-shadow(0 0 8px rgba(33,150,243,.5))!important}
+.fv6-oh{filter:drop-shadow(0 0 3px #ff9800) drop-shadow(0 0 8px rgba(255,152,0,.5))!important}
+.fv6-tr{filter:drop-shadow(0 0 3px #9c27b0) drop-shadow(0 0 8px rgba(156,39,176,.5))!important}
+@keyframes energy-flow-v6{to{stroke-dashoffset:-28}}
+.feeder-flow-overlay{stroke-dasharray:6 16!important;stroke-linecap:round!important;
+  animation:energy-flow-v6 1.4s linear infinite!important;pointer-events:none!important;
+  will-change:stroke-dashoffset;stroke-opacity:.85!important}
+
+/* ══ FEEDER PANEL REDESIGN ══ */
+.fr-row{display:flex;flex-direction:column;padding:6px 8px 5px;border-radius:8px;
+  margin:2px 4px;border:1px solid transparent;transition:all .2s;cursor:default;
+  background:rgba(255,255,255,.02)}
+.fr-row:hover{background:rgba(0,200,255,.05);border-color:rgba(0,200,255,.1)}
+.fr-row.fr-dragging{opacity:.4;border:1px dashed rgba(0,200,255,.4)}
+.fr-row.fr-drag-over{border-top:2px solid #00c8ff}
+.fr-top{display:flex;align-items:center;gap:5px;width:100%}
+.fr-drag{cursor:grab;color:rgba(176,204,224,.2);font-size:14px;padding:0 2px;flex-shrink:0;
+  user-select:none;line-height:1}
+.fr-drag:hover{color:rgba(0,200,255,.5)}
+.fr-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;transform:rotate(45deg)}
+.fr-name{font-family:var(--sans);font-size:11px;color:var(--text);flex:1;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;cursor:pointer;min-width:0;transition:.15s}
+.fr-name:hover{color:#fff}
+.fr-eht{font-family:var(--mono);font-size:8px;color:rgba(0,200,255,.35);
+  white-space:nowrap;letter-spacing:.3px;flex-shrink:0}
+.fr-badge{font-family:var(--mono);font-size:8px;font-weight:700;padding:2px 5px;
+  border-radius:6px;letter-spacing:.5px;flex-shrink:0;border:1px solid}
+.fr-badge-live{background:rgba(0,200,83,.15);color:#00c853;border-color:rgba(0,200,83,.3)}
+.fr-badge-breakdown{background:rgba(255,23,68,.15);color:#ff1744;border-color:rgba(255,23,68,.3);animation:sos-blink .8s infinite}
+.fr-badge-idle{background:rgba(158,158,158,.15);color:#9e9e9e;border-color:rgba(158,158,158,.3)}
+.fr-actions{display:flex;gap:3px;flex-shrink:0}
+.fr-act{font-size:10px;cursor:pointer;padding:1px 4px;border-radius:4px;
+  border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);
+  transition:.15s;color:rgba(176,204,224,.5)}
+.fr-act:hover{background:rgba(0,200,255,.12);color:var(--live);border-color:rgba(0,200,255,.25)}
+.fr-act.del:hover{background:rgba(255,23,68,.15);color:#ff4466;border-color:rgba(255,23,68,.3)}
+.fr-act.stats:hover{background:rgba(0,230,118,.12);color:#00e676;border-color:rgba(0,230,118,.25)}
+.fr-bottom{display:flex;align-items:center;gap:4px;margin-top:4px;padding-left:20px}
+.fr-stat-mini{font-family:var(--mono);font-size:8px;color:rgba(176,204,224,.3);
+  flex:1;letter-spacing:.3px}
+.fr-status-btns{display:flex;gap:3px}
+.fr-sb{padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);color:rgba(176,204,224,.4);font-family:var(--mono);
+  font-size:8px;cursor:pointer;transition:.15s;letter-spacing:.3px}
+.fr-sb:hover{filter:brightness(1.5)}
+.fr-sb.fr-live-act{background:rgba(0,200,83,.2);color:#00c853;border-color:#00c853}
+.fr-sb.fr-dn-act{background:rgba(255,23,68,.2);color:#ff1744;border-color:#ff1744}
+.fr-sb.fr-id-act{background:rgba(158,158,158,.2);color:#9e9e9e;border-color:#9e9e9e}
+.tog-mini{width:26px;height:15px;border-radius:8px;background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.12);position:relative;flex-shrink:0;
+  cursor:pointer;transition:background .25s}
+.tog-mini::after{content:'';position:absolute;top:2px;left:2px;width:9px;height:9px;
+  border-radius:50%;background:rgba(255,255,255,.35);transition:transform .25s}
+.tog-mini.on{background:rgba(0,200,255,.28);border-color:var(--live)}
+.tog-mini.on::after{transform:translateX(11px);background:var(--live)}
+
+/* ══ FEEDER SEARCH DROPDOWN ══ */
+#fsDropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:1200;
+  background:rgba(8,18,30,.98);border:1px solid rgba(0,200,255,.2);border-radius:10px;
+  max-height:260px;overflow-y:auto;display:none;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+#fsDropdown::-webkit-scrollbar{width:3px}
+#fsDropdown::-webkit-scrollbar-thumb{background:rgba(0,200,255,.2);border-radius:3px}
+#fsDropdown.open{display:block}
+.fsd-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(0,200,255,.05);
+  display:flex;align-items:center;gap:8px}
+.fsd-item:hover{background:rgba(0,200,255,.08)}
+.fsd-item:last-child{border:none}
+.fsd-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.fsd-name{font-family:var(--sans);font-size:12px;color:var(--text);flex:1}
+.fsd-src{font-family:var(--mono);font-size:9px;color:rgba(0,200,255,.4)}
+.fsd-badge{font-family:var(--mono);font-size:8px;padding:1px 5px;border-radius:5px}
+
+/* ══ STATS HIERARCHY FILTER ══ */
+.hier-filters{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;
+  padding-bottom:8px;border-bottom:1px solid rgba(0,200,255,.07)}
+.hier-sel{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(0,200,255,.12);
+  border-radius:6px;padding:5px 8px;color:var(--text);font-family:var(--mono);
+  font-size:9px;outline:none;cursor:pointer;letter-spacing:.5px}
+.hier-sel option{background:#0d1b2a;color:#b0cce0}
+.hier-lbl{font-family:var(--mono);font-size:7px;color:rgba(0,200,255,.35);
+  letter-spacing:1.5px;margin-bottom:2px}
+
 /* ══ UPLOAD BUTTON ══ */
 .tb-upload-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:16px;
   border:1px solid rgba(0,200,255,.3);background:rgba(0,200,255,.08);color:var(--live);
@@ -556,8 +640,9 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
   <div class="tb-logo">TGSPDCL</div>
   <div class="tb-sep"></div>
   <div class="tb-title">Kalyannagar Section — 33KV Distribution GIS</div>
-  <div id="srchWrap">
-    <input id="srchInput" placeholder="Search pole no., feeder, cable point…" autocomplete="off"/>
+  <div id="srchWrap" style="position:relative">
+    <input id="srchInput" placeholder="Search feeders, pole no., cable point…" autocomplete="off"/>
+    <div id="fsDropdown"></div>
     <span class="srch-ic">⌕</span>
   </div>
   <div class="tb-upload-btn" onclick="document.getElementById('dfFileInput').click()" title="Upload corrected feeder CSV/XLSX">⬆ Upload CSV/XLSX</div>
@@ -703,7 +788,19 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
     <div class="rcard-body">
       <div class="strow"><span class="stlbl">Total Features</span><span class="stval" id="st-total">—</span></div>
       <div class="strow"><span class="stlbl">Visible Features</span><span class="stval" id="st-visible">—</span></div>
-      <button class="stats-dl-btn" onclick="downloadAllFeederStats()">⬇️ DOWNLOAD ALL FEEDER STATS (.xlsx)</button>
+      <div style="border-top:1px solid rgba(0,200,255,.07);margin:8px 0 6px"></div>
+      <div class="hier-filters">
+        <div><div class="hier-lbl">DIVISION</div>
+          <select class="hier-sel" id="hier-div" onchange="updateHierFilters()"><option value="ALL">ALL DIVISIONS</option></select></div>
+        <div><div class="hier-lbl">SUB DIVISION</div>
+          <select class="hier-sel" id="hier-sub" onchange="updateHierFilters()"><option value="ALL">ALL SUB DIVISIONS</option></select></div>
+        <div><div class="hier-lbl">SECTION</div>
+          <select class="hier-sel" id="hier-sec" onchange="updateHierFilters()"><option value="ALL">ALL SECTIONS</option></select></div>
+        <div><div class="hier-lbl">FEEDER</div>
+          <select class="hier-sel" id="hier-fn" onchange="updateHierFilters()"><option value="ALL">ALL FEEDERS</option></select></div>
+      </div>
+      <div id="hier-result" style="font-family:var(--mono);font-size:9px;color:rgba(0,200,255,.45);margin-bottom:6px;letter-spacing:.5px"></div>
+      <button class="stats-dl-btn" onclick="downloadAllFeederStats()">⬇️ DOWNLOAD FILTERED STATS (.xlsx)</button>
       <div style="border-top:1px solid rgba(0,200,255,.07);margin:8px 0 4px"></div>
       <div class="fstat-grid">
         <div class="fstat-item"><span class="fstat-lbl">FEEDERS</span><span class="fstat-val" id="st-feeders">—</span></div>
@@ -809,6 +906,12 @@ const staticSSKeyTracker = new Set();
 function ssKey(name, lat, lon){
   return String(name||'').toUpperCase().replace(/[^A-Z0-9]/g,'')+'_'+Number(lat).toFixed(6)+'_'+Number(lon).toFixed(6);
 }
+// ── Diamond pole icon for V6 style ──
+function diamondIcon(color){
+  const s=`<svg width="11" height="11" viewBox="0 0 11 11"><rect x=".8" y=".8" width="9.4" height="9.4" rx="1.5" transform="rotate(45 5.5 5.5)" fill="${color}" stroke="rgba(255,255,255,.8)" stroke-width="1.2" style="filter:drop-shadow(0 0 2px ${color})"/></svg>`;
+  return L.divIcon({className:'',html:s,iconSize:[11,11],iconAnchor:[5,5]});
+}
+
 // Cable color: UG=blue, OH=orange, transition=purple
 function cableColor(typeRaw,isOH){
   const t=String(typeRaw||'').toUpperCase().replace(/[\s_]/g,'');
@@ -1001,9 +1104,10 @@ DATA_REGISTRY.forEach(reg=>{
           :feat.geometry.coordinates.map(ls=>ls.map(c=>[c[1],c[0]]));
         let color=cableColor(cableType,isOH);
         let cStatus=feederStatus[feederName]||'live';
-        let customClass=cStatus==='breakdown'?'feeder-breakdown':'';
+        const _gc=isOH?'fv6-oh':(cableType==='-'?'fv6-tr':'fv6-ug');
+        let customClass=(cStatus==='breakdown'?'feeder-breakdown':'')+' '+_gc;
         layer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
-          {color,weight:5.5,opacity:.92,smoothFactor:1.0,lineCap:'round',lineJoin:'round',className:customClass});
+          {color,weight:3,opacity:1,smoothFactor:1,lineCap:'round',lineJoin:'round',className:customClass.trim()});
         let flowClass='feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':'');
         layer.flowLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
           {color:'#ffffff',weight:3,className:flowClass,interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
@@ -1022,7 +1126,7 @@ DATA_REGISTRY.forEach(reg=>{
       const coords=feat.geometry.type==='Point'?feat.geometry.coordinates:feat.geometry.coordinates[0];
       const ll=[coords[1],coords[0]];
       if(reg.type==='points'||reg.type==='fpoles'){
-        layer=L.circleMarker(ll,{radius:4,fillColor:'#ffffff',fillOpacity:1,color:cableColor(cableType,isOH),weight:2,pane:'pointsPane',renderer:_CR});
+        layer=L.marker(ll,{icon:diamondIcon(cableColor(cableType,isOH)),pane:'pointsPane',interactive:true,keyboard:false});
       }else if(reg.type==='cut'){
         layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><polygon points='7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5' fill='#ffeb3b' stroke='#333' stroke-width='1'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
       regType='cut';
@@ -1249,6 +1353,18 @@ function setFeederStatus(fn,status,btnEl){
     else if(status==='breakdown'){item.layer.setStyle({color:'#ff1744',weight:7,opacity:1});safelyManageClass(item.layer,'feeder-breakdown',true);if(item.layer.flowLayer){item.layer.flowLayer.options.className='feeder-flow-overlay hidden-flow';safelyManageClass(item.layer.flowLayer,'hidden-flow',true);}}
     else if(status==='idle'){item.layer.setStyle({color:'#9e9e9e',weight:5,opacity:.6});safelyManageClass(item.layer,'feeder-breakdown',false);if(item.layer.flowLayer){item.layer.flowLayer.options.className='feeder-flow-overlay hidden-flow';safelyManageClass(item.layer.flowLayer,'hidden-flow',true);}}
   });
+  // Update new panel badges
+  document.querySelectorAll(`[data-feeder="${fn}"].fr-sb`).forEach(btn=>{
+    btn.classList.remove('fr-live-act','fr-dn-act','fr-id-act');
+    if(status==='live')btn.classList.toggle('fr-live-act',btn.textContent.includes('Live'));
+    else if(status==='breakdown')btn.classList.toggle('fr-dn-act',btn.textContent.includes('Down'));
+    else btn.classList.toggle('fr-id-act',btn.textContent.includes('Idle'));
+  });
+  document.querySelectorAll(`[id^="fbadge-"][data-feeder="${fn}"]`).forEach(el=>{
+    el.className='fr-badge fr-badge-'+status;
+    el.textContent=status==='live'?'⚡ LIVE':status==='breakdown'?'🔴 DOWN':'⏸ IDLE';
+  });
+  // Legacy fi-btn support
   document.querySelectorAll(`.fi-btn[data-feeder="${fn}"]`).forEach(btn=>{btn.classList.remove('fi-active');if(btn.classList.contains('fi-'+status))btn.classList.add('fi-active');});
  updateFeederBadges();
 
@@ -1293,7 +1409,8 @@ function focusFeeder(fn){
 
 function toggleSingleFeeder(fn,idx,e){
   e.stopPropagation();feederState[fn]=!feederState[fn];
-  document.getElementById('ftog-'+idx).classList.toggle('off',!feederState[fn]);
+  const tog=document.getElementById('ftog-'+idx);
+  if(tog){tog.classList.toggle('on',feederState[fn]);tog.classList.toggle('off',!feederState[fn]);}
   requestVisibilityUpdate();
   toast((feederState[fn]?'Showing ':'Hidden ')+fn.substring(0,20));
 }
@@ -1328,87 +1445,155 @@ function getSectionFromRows(rows, fallbackName){
   return getFeederSectionName(fallbackName);
 }
 
+function extractEHT(fn){
+  // Extract source EHT from feeder name e.g. "ERRAGADA → KALYANNAGAR" → "ERRAGADA"
+  const m=fn.match(/^(.+?)\s*→/);
+  if(m)return m[1].trim().substring(0,16);
+  return fn.substring(0,12);
+}
+
+function getFeederColor(fn){
+  // Return feeder group color
+  for(const grp of GROUP_ORDER){
+    const members=_lastGroups[grp]||[];
+    const m=members.find(x=>x.fn===fn);
+    if(m)return m.color;
+  }
+  return '#78909c';
+}
+
+const FCOLORS=['#00c8ff','#ff9800','#00e676','#9c27b0','#2196f3','#f44336','#ffeb3b','#e91e63','#4caf50','#ff5722','#00bcd4','#cddc39'];
+let _lastGroups={};
+let _feederOrder=[];  // persisted drag order
+
 function buildFeederChecks(){
   const container=document.getElementById('feederChecks');
-  if(!container)return;
-  container.innerHTML='';
+  if(!container)return;container.innerHTML='';
 
-  const FCOLORS=['#00c8ff','#ff9800','#00e676','#9c27b0','#2196f3','#f44336','#ffeb3b','#e91e63','#4caf50','#ff5722','#00bcd4','#cddc39'];
-
-  // Dynamic section tree:
-  // Existing feeders are grouped by EHT/source. Uploaded CSVs are grouped by Section column if available.
   const groups={};
-  [...feederNames].sort().forEach((fn,i)=>{
-    if(feederState[fn]===undefined) feederState[fn]=true;
-    const grp=getFeederSectionName(fn);
-    if(!groups[grp]) groups[grp]=[];
-    groups[grp].push({fn,i,color:FCOLORS[i%FCOLORS.length]});
+  GROUP_ORDER.forEach(g=>{groups[g]=[];});
+  let ci=0;
+  [...feederNames].sort().forEach((fn)=>{
+    feederState[fn]=(feederState[fn]!==undefined)?feederState[fn]:true;
+    const up=fn.toUpperCase();
+    let grp='OTHER';
+    // section-specific grouping
+    if(typeof SECTION_GROUPS==='function')grp=SECTION_GROUPS(up)||'OTHER';
+    else{
+      for(const g of GROUP_ORDER){
+        if(g==='OTHER')continue;
+        if(up.includes(g.replace(/\s*\(.*\)/,'').toUpperCase())){grp=g;break;}
+      }
+    }
+    if(!groups[grp])groups[grp]=[];
+    groups[grp].push({fn,color:FCOLORS[ci%FCOLORS.length]});
+    ci++;
   });
+  _lastGroups=groups;
 
-  const preferred=['ERRAGADA (132KV)','JUBILEE HILLS','NIMS','ERRAGADA (33KV)'];
-  const dynamic=Object.keys(groups).filter(g=>!preferred.includes(g)).sort();
-  const order=[...preferred.filter(g=>groups[g]),...dynamic];
+  // Apply saved order if exists
+  const orderedFeeders=_feederOrder.length
+    ? _feederOrder.filter(fn=>feederNames.has(fn)).concat([...feederNames].filter(fn=>!_feederOrder.includes(fn)))
+    : null;
 
   let globalIdx=0;
-  order.forEach((grpKey,gi)=>{
-    const members=groups[grpKey]||[];
-    if(!members.length)return;
-
-    const grpColor=FCOLORS[gi%FCOLORS.length];
+  GROUP_ORDER.forEach(grpKey=>{
+    const members=groups[grpKey];
+    if(!members||!members.length)return;
     const grpDiv=document.createElement('div');
-    grpDiv.className='fgrp';
-    grpDiv.dataset.group=grpKey;
+    grpDiv.className='fgrp';grpDiv.dataset.group=grpKey;
 
-    const hd=document.createElement('div');
-    hd.className='fgrp-hd';
+    const hd=document.createElement('div');hd.className='fgrp-hd';
     hd.innerHTML=`<span class="fgrp-arrow">▾</span>
-      <div class="fgrp-dot" style="background:${grpColor}"></div>
+      <div class="fgrp-dot" style="background:${GROUP_COLORS[grpKey]||'#78909c'}"></div>
       <span class="fgrp-label">${grpKey}</span>
       <span class="fgrp-cnt">${members.length}</span>`;
-    grpDiv.appendChild(hd);
-
-    const body=document.createElement('div');
-    body.className='fgrp-body';
-    body.style.maxHeight='2200px';
+    const body=document.createElement('div');body.className='fgrp-body';body.style.maxHeight='2000px';
 
     hd.onclick=()=>{
-      hd.classList.toggle('collapsed');
-      body.classList.toggle('collapsed');
-      if(!body.classList.contains('collapsed'))body.style.maxHeight=body.scrollHeight+'px';
-      else body.style.maxHeight='0';
+      hd.classList.toggle('collapsed');body.classList.toggle('collapsed');
+      body.style.maxHeight=body.classList.contains('collapsed')?'0':body.scrollHeight+'px';
     };
+    grpDiv.appendChild(hd);
 
-    members.forEach(({fn,i,color})=>{
+    const displayMembers=orderedFeeders
+      ? orderedFeeders.filter(fn=>members.some(m=>m.fn===fn)).map(fn=>members.find(m=>m.fn===fn))
+      : members;
+
+    displayMembers.forEach(({fn,color})=>{
+      if(!fn)return;
       const fe=fn.replace(/'/g,"\\'");
       const idx=globalIdx++;
-      const short=fn.length>26?fn.substring(0,24)+'…':fn;
+      const status=feederStatus[fn]||'live';
+      const eht=extractEHT(fn);
+      const shortName=fn.length>28?fn.substring(0,26)+'…':fn;
+      const togOn=feederState[fn]!==false;
+
       const row=document.createElement('div');
-      row.className='ftog-row';
-      row.dataset.fname=fn.toLowerCase();
-      row.style.cssText='flex-wrap:wrap;gap:3px;padding:4px 6px;';
+      row.className='fr-row';row.dataset.fname=fn.toLowerCase();row.dataset.fn=fn;
+      row.draggable=true;
+
       row.innerHTML=`
-        <div style="display:flex;align-items:center;gap:6px;width:100%">
-          <div style="width:9px;height:9px;border-radius:2px;background:${color};flex-shrink:0;border:1px solid rgba(255,255,255,.18)"></div>
-          <span class="focus-txt" style="font-family:var(--sans);font-size:11px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;min-width:0" title="${fn}" onclick="focusFeeder('${fe}')">${short}</span>
-          <span style="font-size:10px;cursor:pointer;padding:1px 5px;border-radius:4px;border:1px solid rgba(0,200,255,.25);color:rgba(0,200,255,.6);background:rgba(0,200,255,.07);font-family:var(--mono);letter-spacing:.5px;flex-shrink:0;transition:.2s" title="Edit Mode" onclick="quickEditMode('${fe}',event)">✏️</span>
-          <span style="font-size:10px;cursor:pointer;padding:1px 5px;border-radius:4px;border:1px solid rgba(0,230,118,.25);color:rgba(0,230,118,.6);background:rgba(0,230,118,.07);font-family:var(--mono);flex-shrink:0;transition:.2s" title="Feeder Statistics" onclick="toggleFeederStatsByName('${fe}',event)">📊</span>
-          <span class="fn-del-btn" title="Delete feeder from map" onclick="deleteFeederFromMap('${fe}',event)">🗑</span>
-          <div class="tog" id="ftog-${idx}" style="flex-shrink:0" onclick="toggleSingleFeeder('${fe}',${idx},event)"></div>
+        <div class="fr-top">
+          <span class="fr-drag" title="Drag to reorder">⠿</span>
+          <div class="fr-dot" style="background:${color}"></div>
+          <span class="fr-name focus-txt" title="${fn}" onclick="focusFeeder('${fe}')">${shortName}</span>
+          <span class="fr-eht">${eht}</span>
+          <span class="fr-badge fr-badge-${status}" id="fbadge-${idx}" data-feeder="${fe}">${status==='live'?'⚡':status==='breakdown'?'🔴':'⏸'} ${status.toUpperCase()}</span>
+          <div class="fr-actions">
+            <span class="fr-act" title="Edit Mode" onclick="quickEditMode('${fe}',event)">✏</span>
+            <span class="fr-act stats" title="Stats" onclick="toggleFeederStatsByName('${fe}',event)">📊</span>
+            <span class="fr-act del" title="Delete" onclick="deleteFeederFromMap('${fe}',event)">✕</span>
+          </div>
+          <div class="tog-mini ${togOn?'on':''}" id="ftog-${idx}" onclick="toggleSingleFeeder('${fe}',${idx},event)"></div>
         </div>
-        <div style="display:flex;gap:3px;padding-left:15px;margin-top:2px;width:100%">
-          <button class="fi-btn fi-live"      data-feeder="${fe}" onclick="setFeederStatus('${fe}','live',this)">⚡ Live</button>
-          <button class="fi-btn fi-breakdown" data-feeder="${fe}" onclick="setFeederStatus('${fe}','breakdown',this)">🔴 Down</button>
-          <button class="fi-btn fi-idle"      data-feeder="${fe}" onclick="setFeederStatus('${fe}','idle',this)">⏸ Idle</button>
+        <div class="fr-bottom">
+          <span class="fr-stat-mini" id="fmini-${idx}">—</span>
+          <div class="fr-status-btns">
+            <button class="fr-sb ${status==='live'?'fr-live-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','live',this)">⚡ Live</button>
+            <button class="fr-sb ${status==='breakdown'?'fr-dn-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','breakdown',this)">🔴 Down</button>
+            <button class="fr-sb ${status==='idle'?'fr-id-act':''}" data-feeder="${fe}" onclick="setFeederStatus('${fe}','idle',this)">⏸ Idle</button>
+          </div>
         </div>`;
+
+      // Drag to reorder
+      row.addEventListener('dragstart',e=>{
+        e.dataTransfer.setData('text/plain',fn);
+        row.classList.add('fr-dragging');
+      });
+      row.addEventListener('dragend',()=>row.classList.remove('fr-dragging'));
+      row.addEventListener('dragover',e=>{e.preventDefault();row.classList.add('fr-drag-over');});
+      row.addEventListener('dragleave',()=>row.classList.remove('fr-drag-over'));
+      row.addEventListener('drop',e=>{
+        e.preventDefault();row.classList.remove('fr-drag-over');
+        const draggedFn=e.dataTransfer.getData('text/plain');
+        if(draggedFn===fn)return;
+        const allFns=[...feederNames];
+        const fromIdx=(_feederOrder.length?_feederOrder:allFns).indexOf(draggedFn);
+        const toIdx=(_feederOrder.length?_feederOrder:allFns).indexOf(fn);
+        if(!_feederOrder.length)_feederOrder=[...allFns];
+        _feederOrder.splice(fromIdx,1);
+        _feederOrder.splice(toIdx,0,draggedFn);
+        buildFeederChecks();
+        // Save order to Firebase
+        if(typeof fbSet==='function')fbSet('feederOrder',_feederOrder).catch(()=>{});
+      });
+
       body.appendChild(row);
+
+      // Compute mini stats async
+      requestIdleCallback(()=>{
+        const el=document.getElementById('fmini-'+idx);if(!el)return;
+        const s=calcFeederStats(fn);
+        el.textContent=`UG ${s.ugKm.toFixed(2)}km · OH ${s.ohKm.toFixed(2)}km · ${s.poles} poles`;
+      },{timeout:1000});
     });
 
-    grpDiv.appendChild(body);
-    container.appendChild(grpDiv);
+    grpDiv.appendChild(body);container.appendChild(grpDiv);
   });
-
-  if(typeof updateFeederBadges==='function') updateFeederBadges();
 }
+
+
 
 function filterFeeders(q){
   q=q.trim().toLowerCase();
@@ -2084,6 +2269,218 @@ function downloadAllFeederStats(){
   toast('📥 Downloaded feeder stats Excel',2500);
 }
 
+// ══════════════════════════════════════════════════════════════════
+// ENERGY PARTICLE SYSTEM (V6 SCADA — medium speed)
+// ══════════════════════════════════════════════════════════════════
+const _particles={};  // feederName → {marker, progress}
+let _particleRAF=null;
+
+function initParticles(){
+  // Clear old particles
+  Object.values(_particles).forEach(p=>{if(map.hasLayer(p.marker))map.removeLayer(p.marker);});
+  for(const k in _particles)delete _particles[k];
+
+  feederNames.forEach(fn=>{
+    const status=feederStatus[fn]||'live';
+    if(status!=='live')return;
+    const lines=allLayers.filter(i=>i.feederName===fn&&i.reg.type==='lines'&&!i._deleted);
+    if(!lines.length)return;
+    const lls=lines[0].layer.getLatLngs();
+    if(!lls||!lls.length)return;
+    const coords=Array.isArray(lls[0])?lls.flat():lls;
+    if(coords.length<2)return;
+    const color=getFeederColor(fn)||'#00c8ff';
+    const marker=L.marker(coords[0],{
+      icon:L.divIcon({className:'',
+        html:`<div style="width:9px;height:9px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 8px 2px ${color},0 0 16px ${color}88;pointer-events:none"></div>`,
+        iconSize:[0,0],iconAnchor:[0,0]}),
+      zIndexOffset:2500,interactive:false,keyboard:false
+    });
+    if(LGstate['ug-lines']||LGstate['oh-lines'])marker.addTo(map);
+    _particles[fn]={marker,progress:Math.random(),coords,color};
+  });
+  if(!_particleRAF)_particleRAF=requestAnimationFrame(animateParticles);
+}
+
+function animateParticles(){
+  const SPEED=0.0018; // medium speed — full feeder in ~4-5 sec
+  Object.entries(_particles).forEach(([fn,p])=>{
+    const status=feederStatus[fn]||'live';
+    if(status!=='live'){
+      if(map.hasLayer(p.marker))map.removeLayer(p.marker);
+      return;
+    }
+    if(!feederState[fn]&&feederState[fn]!==undefined){
+      if(map.hasLayer(p.marker))map.removeLayer(p.marker);
+      return;
+    }
+    if(!map.hasLayer(p.marker))p.marker.addTo(map);
+    p.progress=(p.progress+SPEED)%1;
+    const coords=p.coords;
+    const totalIdx=(coords.length-1)*p.progress;
+    const i=Math.floor(totalIdx);
+    const f=totalIdx-i;
+    if(i<coords.length-1){
+      const a=coords[i],b=coords[i+1];
+      const lat=(a.lat||a[0])+(((b.lat||b[0])-(a.lat||a[0]))*f);
+      const lng=(a.lng||a[1])+(((b.lng||b[1])-(a.lng||a[1]))*f);
+      p.marker.setLatLng([lat,lng]);
+    }
+  });
+  _particleRAF=requestAnimationFrame(animateParticles);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ENHANCED FEEDER SEARCH — dropdown with fly-to
+// ══════════════════════════════════════════════════════════════════
+(function(){
+  const inp=document.getElementById('srchInput');
+  const dd=document.getElementById('fsDropdown');
+  if(!inp||!dd)return;
+
+  function showDropdown(q){
+    q=q.trim().toLowerCase();
+    if(!q){dd.classList.remove('open');return;}
+    const matches=[...feederNames].filter(fn=>fn.toLowerCase().includes(q)).slice(0,12);
+    if(!matches.length){dd.classList.remove('open');return;}
+    dd.innerHTML='';
+    matches.forEach(fn=>{
+      const color=getFeederColor(fn)||'#78909c';
+      const status=feederStatus[fn]||'live';
+      const badgeColor=status==='live'?'#00c853':status==='breakdown'?'ff1744':'#9e9e9e';
+      const div=document.createElement('div');div.className='fsd-item';
+      div.innerHTML=`<div class="fsd-dot" style="background:${color}"></div>
+        <span class="fsd-name">${fn}</span>
+        <span class="fsd-src">${extractEHT(fn)}</span>
+        <span class="fsd-badge" style="background:rgba(0,0,0,.2);color:${badgeColor};border:1px solid ${badgeColor}44">${status.toUpperCase()}</span>`;
+      div.onclick=()=>{
+        dd.classList.remove('open');inp.value='';
+        focusFeeder(fn);
+        const pts=allLayers.filter(i=>i.feederName===fn&&i.layer.getLatLngs);
+        if(pts.length){
+          const bounds=L.latLngBounds(pts.flatMap(i=>i.layer.getLatLngs().flat?i.layer.getLatLngs().flat():i.layer.getLatLngs()));
+          map.flyToBounds(bounds,{padding:[60,60],maxZoom:17,animate:true,duration:.7});
+        }
+      };
+      dd.appendChild(div);
+    });
+    dd.classList.add('open');
+  }
+
+  inp.addEventListener('input',e=>showDropdown(e.target.value));
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){dd.classList.remove('open');inp.value='';}
+    if(e.key==='Enter'&&!dd.classList.contains('open')){
+      // Legacy pole search
+      const q=inp.value.trim().toLowerCase();if(!q)return;
+      const found=allLayers.find(i=>{const p=i.layer.feature?.properties||{};return JSON.stringify(p).toLowerCase().includes(q);});
+      if(found&&found.layer.getLatLng){
+        map.flyTo(found.layer.getLatLng(),19,{animate:true,duration:.6});
+        if(found.layer.getPopup?.())found.layer.openPopup();
+        const ping=L.marker(found.layer.getLatLng(),{icon:L.divIcon({className:'radar-ping',iconSize:[0,0]}),zIndexOffset:2000}).addTo(map);
+        setTimeout(()=>map.removeLayer(ping),4000);
+      }
+    }
+  });
+  document.addEventListener('click',e=>{if(!inp.contains(e.target)&&!dd.contains(e.target))dd.classList.remove('open');});
+})();
+
+// ══════════════════════════════════════════════════════════════════
+// STATS HIERARCHY FILTER
+// ══════════════════════════════════════════════════════════════════
+let _hierFiltered=null; // null = all
+
+function buildHierFilters(){
+  // Extract unique Division/SubDiv/Section from uploaded feeder data
+  const divs=new Set(),subs=new Set(),secs=new Set();
+  allLayers.forEach(item=>{
+    if(!['points','fpoles'].includes(item.reg.type))return;
+    const p=item.layer.feature?.properties||{};
+    if(p.Division||p.division)divs.add(p.Division||p.division);
+    if(p['Sub Division']||p.sub_division)subs.add(p['Sub Division']||p.sub_division);
+    if(p.Section||p.section)secs.add(p.Section||p.section);
+  });
+  const fill=(id,opts,label)=>{
+    const el=document.getElementById(id);if(!el)return;
+    const cur=el.value;
+    el.innerHTML=`<option value="ALL">ALL ${label}</option>`;
+    [...opts].filter(Boolean).sort().forEach(v=>{
+      const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);
+    });
+    if(cur&&[...opts].includes(cur))el.value=cur;
+  };
+  fill('hier-div',divs,'DIVISIONS');
+  fill('hier-sub',subs,'SUB DIVISIONS');
+  fill('hier-sec',secs,'SECTIONS');
+  // Feeder dropdown
+  const fnEl=document.getElementById('hier-fn');
+  if(fnEl){
+    const curFn=fnEl.value;
+    fnEl.innerHTML='<option value="ALL">ALL FEEDERS</option>';
+    [...feederNames].sort().forEach(fn=>{
+      const o=document.createElement('option');o.value=fn;o.textContent=fn.length>40?fn.substring(0,38)+'…':fn;fnEl.appendChild(o);
+    });
+    if(curFn&&feederNames.has(curFn))fnEl.value=curFn;
+  }
+  updateHierFilters();
+}
+
+function updateHierFilters(){
+  const div=document.getElementById('hier-div')?.value||'ALL';
+  const sub=document.getElementById('hier-sub')?.value||'ALL';
+  const sec=document.getElementById('hier-sec')?.value||'ALL';
+  const fn=document.getElementById('hier-fn')?.value||'ALL';
+  _hierFiltered={div,sub,sec,fn};
+  const res=document.getElementById('hier-result');
+  if(res){
+    const filtered=getFilteredFeeders();
+    res.textContent=`→ ${filtered.length} feeder(s) selected`;
+  }
+}
+
+function getFilteredFeeders(){
+  if(!_hierFiltered)return [...feederNames];
+  const {div,sub,sec,fn}=_hierFiltered;
+  if(fn!=='ALL')return feederNames.has(fn)?[fn]:[];
+  return [...feederNames].filter(feederName=>{
+    // Check if any point in this feeder matches filters
+    const items=allLayers.filter(i=>i.feederName===feederName&&['points','fpoles'].includes(i.reg.type));
+    if(!items.length)return true; // static feeder — include
+    return items.some(item=>{
+      const p=item.layer.feature?.properties||{};
+      const pDiv=p.Division||p.division||'';
+      const pSub=p['Sub Division']||p.sub_division||'';
+      const pSec=p.Section||p.section||'';
+      return (div==='ALL'||pDiv===div)&&(sub==='ALL'||pSub===sub)&&(sec==='ALL'||pSec===sec);
+    });
+  });
+}
+
+// Override downloadAllFeederStats to use hierarchy filter
+function downloadAllFeederStats(){
+  if(typeof XLSX==='undefined'){toast('SheetJS not loaded',2000);return;}
+  const feeders=getFilteredFeeders();
+  if(!feeders.length){toast('No feeders match filter',2000);return;}
+  const rows=[];
+  feeders.sort().forEach(fn=>{
+    const s=calcFeederStats(fn);
+    rows.push({
+      'Feeder Name':fn,'Source EHT':extractEHT(fn),
+      'Status':(feederStatus[fn]||'live').toUpperCase(),
+      'Poles/Points':s.poles,'Total Length (km)':+s.totalKm.toFixed(3),
+      'UG Length (km)':+s.ugKm.toFixed(3),'OH Length (km)':+s.ohKm.toFixed(3),
+      'Trans Length (km)':+s.trKm.toFixed(3),
+      'AB Switches':s.abCnt,'DP Structures':s.dpCnt,'Cut Points':s.cutCnt,
+    });
+  });
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:45},{wch:16},{wch:10},{wch:12},{wch:16},{wch:14},{wch:14},{wch:16},{wch:12},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,'Feeder Stats');
+  XLSX.writeFile(wb,'Feeder_Stats_Filtered.xlsx');
+  toast('📥 Downloaded '+rows.length+' feeder stats',2500);
+}
+
 map.on('zoomend',syncLabels);
 document.getElementById('loader').addEventListener('click',dismissLoader);
 
@@ -2335,9 +2732,9 @@ function renderUploadedRows(rows,sourceFileName){
         regType='cut';
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><polygon points='7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5' fill='#ffeb3b' stroke='#333' stroke-width='1'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
       }else if(p.pn.spur){
-        layer=L.circleMarker([p.lat,p.lng],{radius:3.5,fillColor:'#ffe082',fillOpacity:1,color:ptColor,weight:2,pane:'pointsPane',renderer:_CR});
+        layer=L.marker([p.lat,p.lng],{icon:diamondIcon('#ffd54f'),pane:'pointsPane',interactive:true,keyboard:false});
       }else{
-        layer=L.circleMarker([p.lat,p.lng],{radius:4,fillColor:'#ffffff',fillOpacity:1,color:ptColor,weight:2,pane:'pointsPane',renderer:_CR});
+        layer=L.marker([p.lat,p.lng],{icon:diamondIcon(ptColor),pane:'pointsPane',interactive:true,keyboard:false});
       }
       const reg={type:regType,feeder:feederName,cable};
       layer.feature=feat;layer._editId=editLayerCounter++;
@@ -2466,7 +2863,12 @@ function fbGet(path){
 
 // ── Save feeder status ──
 function fbSaveFeederStatus(fn,status){
-  fbSet(`feeders/${safeFbKey(fn)}/status`,status);
+  if(status==='live'){
+    // Remove from Firebase — live is default, no need to store
+    fetch(FIREBASE_URL+'/feeders/'+safeFbKey(fn)+'/status.json',{method:'DELETE'}).catch(()=>{});
+  } else {
+    fbSet('feeders/'+safeFbKey(fn)+'/status',status);
+  }
 }
 
 // ── Load feeder statuses ──
