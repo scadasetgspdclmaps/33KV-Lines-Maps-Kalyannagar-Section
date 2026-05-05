@@ -115,10 +115,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--navy)}
 /* MAP — GPU composited */
 #map{position:fixed;inset:52px 0 38px 0;z-index:1;
   will-change:transform;transform:translateZ(0);
-  cursor:grab;touch-action:none}
+  cursor:grab;touch-action:pan-x pan-y}
+#map:active{cursor:grabbing}
 #map:active{cursor:grabbing}
 .leaflet-map-pane{will-change:transform;transform:translateZ(0)}
-.leaflet-overlay-pane,.leaflet-marker-pane,.leaflet-shadow-pane{will-change:transform;transform:translateZ(0)}
+.leaflet-overlay-pane,.leaflet-marker-pane,.leaflet-shadow-pane,.leaflet-tile-pane{will-change:transform;transform:translateZ(0);backface-visibility:hidden}
 .leaflet-tile{transition:opacity .15s linear!important;-webkit-backface-visibility:hidden;backface-visibility:hidden}
 
 .leaflet-zoom-anim .leaflet-zoom-animated{transition:transform 0.22s cubic-bezier(0.25,0.46,0.45,0.94)!important}
@@ -823,9 +824,9 @@ const map = L.map('map',{
   preferCanvas:false,
   zoomAnimation:true, zoomAnimationThreshold:4,
   fadeAnimation:true, markerZoomAnimation:true,
-  inertia:true, inertiaDeceleration:2800, inertiaMaxSpeed:Infinity,
-  scrollWheelZoom:true, wheelDebounceTime:20, wheelPxPerZoomLevel:80,
-  zoomSnap:0.1, zoomDelta:0.5,
+  inertia:true, inertiaDeceleration:3500, inertiaMaxSpeed:Infinity,
+  scrollWheelZoom:true, wheelDebounceTime:10, wheelPxPerZoomLevel:60,
+  zoomSnap:0.25, zoomDelta:0.5,
   doubleClickZoom:true, keyboard:true, keyboardPanDelta:80,
 });
 
@@ -844,8 +845,8 @@ window.addEventListener('resize',()=>map.invalidateSize());
 // ── BASEMAPS ──
 const _tileOpts = {
   maxZoom:22, maxNativeZoom:19,
-  updateWhenIdle:false, updateWhenZooming:false,
-  keepBuffer:4, tileSize:256, crossOrigin:true,
+  updateWhenIdle:false, updateWhenZooming:true,
+  keepBuffer:8, tileSize:256, crossOrigin:true, maxZoom:22, maxNativeZoom:19,
 };
 const _bmDefs = {
   dark:      ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{..._tileOpts,subdomains:'abcd'}],
@@ -1126,7 +1127,7 @@ DATA_REGISTRY.forEach(reg=>{
       const coords=feat.geometry.type==='Point'?feat.geometry.coordinates:feat.geometry.coordinates[0];
       const ll=[coords[1],coords[0]];
       if(reg.type==='points'||reg.type==='fpoles'){
-        layer=L.marker(ll,{icon:diamondIcon(cableColor(cableType,isOH)),pane:'pointsPane',interactive:true,keyboard:false});
+        layer=L.circleMarker(ll,{radius:3.5,fillColor:'#fff',fillOpacity:1,color:cableColor(cableType,isOH),weight:1.5,pane:'pointsPane',renderer:_CR});
       }else if(reg.type==='cut'){
         layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><polygon points='7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5' fill='#ffeb3b' stroke='#333' stroke-width='1'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
       regType='cut';
@@ -1443,6 +1444,21 @@ function getSectionFromRows(rows, fallbackName){
   const sub=_getRowVal(r,'sub_division','Sub Division','Sub-Division','Subdivision','subdivision');
   if(sub) return sub.toUpperCase();
   return getFeederSectionName(fallbackName);
+}
+
+
+// ── Global group definitions (section-specific) ──
+const GROUP_ORDER=['ERRAGADA (132KV)','JUBILEE HILLS','NIMS','ERRAGADA (33KV)','OTHER'];
+const GROUP_COLORS={
+  'ERRAGADA (132KV)':'#00c8ff','JUBILEE HILLS':'#ff9800',
+  'NIMS':'#00e676','ERRAGADA (33KV)':'#9c27b0','OTHER':'#78909c'
+};
+function SECTION_GROUPS(up){
+  if(up.includes('JUBILEE HILLS')||up.includes('JUBILEEHILLS'))return 'JUBILEE HILLS';
+  if(up.includes('NIMS'))return 'NIMS';
+  if(up.includes('ERRAGADA')||up.includes('ERRAGADDA'))
+    return up.includes('132')?'ERRAGADA (132KV)':'ERRAGADA (33KV)';
+  return 'OTHER';
 }
 
 function extractEHT(fn){
@@ -2275,11 +2291,27 @@ function downloadAllFeederStats(){
 const _particles={};  // feederName → {marker, progress}
 let _particleRAF=null;
 
-function initParticles(){
-  // Clear old particles
-  Object.values(_particles).forEach(p=>{if(map.hasLayer(p.marker))map.removeLayer(p.marker);});
-  for(const k in _particles)delete _particles[k];
+// ── Particle canvas overlay (GPU — zero DOM elements) ──
+let _pCanvas=null,_pCtx=null,_pRAF=null,_pLastTime=0;
 
+function initParticleCanvas(){
+  if(_pCanvas)return;
+  _pCanvas=document.createElement('canvas');
+  _pCanvas.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500';
+  document.getElementById('map').appendChild(_pCanvas);
+  window.addEventListener('resize',resizeParticleCanvas);
+  map.on('move zoom',resizeParticleCanvas);
+  resizeParticleCanvas();
+}
+function resizeParticleCanvas(){
+  if(!_pCanvas)return;
+  const el=document.getElementById('map');
+  _pCanvas.width=el.offsetWidth;_pCanvas.height=el.offsetHeight;
+}
+
+function initParticles(){
+  for(const k in _particles)delete _particles[k];
+  initParticleCanvas();
   feederNames.forEach(fn=>{
     const status=feederStatus[fn]||'live';
     if(status!=='live')return;
@@ -2290,44 +2322,46 @@ function initParticles(){
     const coords=Array.isArray(lls[0])?lls.flat():lls;
     if(coords.length<2)return;
     const color=getFeederColor(fn)||'#00c8ff';
-    const marker=L.marker(coords[0],{
-      icon:L.divIcon({className:'',
-        html:`<div style="width:9px;height:9px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 8px 2px ${color},0 0 16px ${color}88;pointer-events:none"></div>`,
-        iconSize:[0,0],iconAnchor:[0,0]}),
-      zIndexOffset:2500,interactive:false,keyboard:false
-    });
-    if(LGstate['ug-lines']||LGstate['oh-lines'])marker.addTo(map);
-    _particles[fn]={marker,progress:Math.random(),coords,color};
+    _particles[fn]={progress:Math.random(),coords,color};
   });
-  if(!_particleRAF)_particleRAF=requestAnimationFrame(animateParticles);
+  if(!_pRAF)_pRAF=requestAnimationFrame(animateParticles);
 }
 
-function animateParticles(){
-  const SPEED=0.0018; // medium speed — full feeder in ~4-5 sec
+function animateParticles(ts){
+  // Throttle to 30fps for smooth but CPU-friendly animation
+  if(ts-_pLastTime<33){_pRAF=requestAnimationFrame(animateParticles);return;}
+  _pLastTime=ts;
+  if(!_pCanvas||!_pCtx){_pCtx=_pCanvas?.getContext('2d');if(!_pCtx){_pRAF=requestAnimationFrame(animateParticles);return;}}
+  _pCtx.clearRect(0,0,_pCanvas.width,_pCanvas.height);
+  const SPEED=0.004; // medium speed
   Object.entries(_particles).forEach(([fn,p])=>{
-    const status=feederStatus[fn]||'live';
-    if(status!=='live'){
-      if(map.hasLayer(p.marker))map.removeLayer(p.marker);
-      return;
-    }
-    if(!feederState[fn]&&feederState[fn]!==undefined){
-      if(map.hasLayer(p.marker))map.removeLayer(p.marker);
-      return;
-    }
-    if(!map.hasLayer(p.marker))p.marker.addTo(map);
+    if((feederStatus[fn]||'live')!=='live')return;
+    if(feederState[fn]===false)return;
     p.progress=(p.progress+SPEED)%1;
     const coords=p.coords;
     const totalIdx=(coords.length-1)*p.progress;
-    const i=Math.floor(totalIdx);
-    const f=totalIdx-i;
-    if(i<coords.length-1){
-      const a=coords[i],b=coords[i+1];
-      const lat=(a.lat||a[0])+(((b.lat||b[0])-(a.lat||a[0]))*f);
-      const lng=(a.lng||a[1])+(((b.lng||b[1])-(a.lng||a[1]))*f);
-      p.marker.setLatLng([lat,lng]);
-    }
+    const i=Math.floor(totalIdx);const f=totalIdx-i;
+    if(i>=coords.length-1)return;
+    const a=coords[i],b=coords[i+1];
+    const la=(a.lat||a[0]),lo=(a.lng||a[1]);
+    const lb=(b.lat||b[0]),lo2=(b.lng||b[1]);
+    const lat=la+(lb-la)*f,lng=lo+(lo2-lo)*f;
+    try{
+      const pt=map.latLngToContainerPoint([lat,lng]);
+      // Draw glowing dot on canvas
+      const grd=_pCtx.createRadialGradient(pt.x,pt.y,0,pt.x,pt.y,8);
+      grd.addColorStop(0,'rgba(255,255,255,0.95)');
+      grd.addColorStop(0.3,p.color+'cc');
+      grd.addColorStop(1,'transparent');
+      _pCtx.beginPath();
+      _pCtx.arc(pt.x,pt.y,8,0,Math.PI*2);
+      _pCtx.fillStyle=grd;_pCtx.fill();
+      // Core bright dot
+      _pCtx.beginPath();_pCtx.arc(pt.x,pt.y,3,0,Math.PI*2);
+      _pCtx.fillStyle='#fff';_pCtx.fill();
+    }catch(e){}
   });
-  _particleRAF=requestAnimationFrame(animateParticles);
+  _pRAF=requestAnimationFrame(animateParticles);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2732,9 +2766,9 @@ function renderUploadedRows(rows,sourceFileName){
         regType='cut';
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><polygon points='7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5' fill='#ffeb3b' stroke='#333' stroke-width='1'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
       }else if(p.pn.spur){
-        layer=L.marker([p.lat,p.lng],{icon:diamondIcon('#ffd54f'),pane:'pointsPane',interactive:true,keyboard:false});
+        layer=L.circleMarker([p.lat,p.lng],{radius:3,fillColor:'#ffe082',fillOpacity:1,color:'#ff9800',weight:1.5,pane:'pointsPane',renderer:_CR});
       }else{
-        layer=L.marker([p.lat,p.lng],{icon:diamondIcon(ptColor),pane:'pointsPane',interactive:true,keyboard:false});
+        layer=L.circleMarker([p.lat,p.lng],{radius:3.5,fillColor:'#fff',fillOpacity:1,color:ptColor,weight:1.5,pane:'pointsPane',renderer:_CR});
       }
       const reg={type:regType,feeder:feederName,cable};
       layer.feature=feat;layer._editId=editLayerCounter++;
