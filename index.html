@@ -28,7 +28,7 @@ const FIREBASE_URL = "https://tgspdcl-gis-default-rtdb.asia-southeast1.firebased
 html,body{width:100%;height:100%;overflow:hidden;background:var(--navy)}
 
 /* MAP — GPU composited */
-#map{position:fixed;inset:52px 0 82px 0;z-index:1;
+#map{position:fixed;inset:52px 0 90px 0;z-index:1;
   will-change:transform;transform:translateZ(0);
   cursor:grab;touch-action:pan-x pan-y}
 #map:active{cursor:grabbing}
@@ -148,7 +148,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--navy)}
 #coords{color:var(--live)}
 
 /* LEGEND */
-#legend{position:fixed;bottom:46px;left:268px;z-index:800;
+#legend{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:951;left:268px;z-index:800;
   background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border:1px solid #ccc;border-radius:10px;
   padding:9px 13px;display:flex;gap:12px;flex-wrap:wrap;
   font-family:var(--sans);font-size:11px;font-weight:bold;letter-spacing:.5px;
@@ -225,10 +225,10 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 .sl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 
 /* BASEMAP TABS */
-#bm-tabs{position:fixed;bottom:46px;left:50%;transform:translateX(-50%);z-index:950;display:flex;flex-direction:row;gap:3px}
-.bm-tab{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);background:#fff;border:1px solid rgba(0,0,0,.15);border-right:none;border-radius:8px 0 0 8px;padding:14px 7px;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:#2a4a6a;cursor:pointer;transition:all .2s var(--ease);white-space:nowrap;backdrop-filter:blur(12px);box-shadow:-2px 0 10px rgba(0,0,0,.12);user-select:none}
-.bm-tab:hover{background:#e8edf2;color:#1a3a5c;border-color:#1976d2;padding-right:11px}
-.bm-tab.active{background:#1976d2;color:#fff;border-color:#1565c0;font-weight:700;box-shadow:-3px 0 16px rgba(25,118,210,.3)}
+#bm-tabs{position:fixed;bottom:48px;left:50%;transform:translateX(-50%);z-index:950;display:flex;flex-direction:row;gap:4px;padding:5px 8px;background:rgba(8,18,30,.88);border:1px solid rgba(0,200,255,.15);border-radius:30px;backdrop-filter:blur(16px);box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.bm-tab{writing-mode:horizontal-tb;text-orientation:mixed;transform:none;background:transparent;border:none;border-radius:20px;padding:5px 14px;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:rgba(176,204,224,.55);cursor:pointer;transition:all .2s;white-space:nowrap;user-select:none}
+.bm-tab:hover{background:rgba(0,200,255,.12);color:var(--live)}
+.bm-tab.active{background:rgba(0,200,255,.2);color:var(--live);font-weight:700;box-shadow:0 0 12px rgba(0,200,255,.2)}
 
 /* RIGHT PANEL */
 #rpanel{position:fixed;top:52px;right:50px;bottom:38px;z-index:890;width:230px;
@@ -265,15 +265,14 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 /* ══ FEEDER GROUPS ══ */
 .fgrp{margin-bottom:2px}
-.fgrp-hd{display:flex;align-items:center;gap:6px;padding:6px 8px 4px;cursor:pointer;
-  border-radius:6px;transition:background .2s;user-select:none;margin:2px 4px}
+.fgrp-hd{display:flex;align-items:center;gap:7px;padding:8px 10px 6px;cursor:pointer;
+  border-radius:8px;transition:background .2s;user-select:none;margin:2px 4px}
 .fgrp-hd:hover{background:rgba(0,200,255,.07)}
-.fgrp-arrow{font-size:9px;color:rgba(0,200,255,.5);transition:transform .2s;flex-shrink:0}
-.fgrp-hd.collapsed .fgrp-arrow{transform:rotate(-90deg)}
-.fgrp-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.fgrp-label{font-family:var(--mono);font-size:9px;color:rgba(0,200,255,.7);letter-spacing:1.5px;flex:1}
-.fgrp-cnt{font-family:var(--mono);font-size:8px;color:rgba(0,200,255,.4);
-  background:rgba(0,200,255,.08);padding:2px 6px;border-radius:8px}
+.fgrp-arrow{font-size:14px;color:#4a6fa5;transition:transform .2s;width:16px;text-align:center}
+.fgrp-hd.collapsed .fgrp-arrow{font-size:14px;color:#4a6fa5;transition:transform .2s;width:16px;text-align:center}
+.fgrp-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0;transform:rotate(45deg)}
+.fgrp-label{font-family:var(--sans);font-size:13px;font-weight:700;color:#1e3a5f;letter-spacing:.3px;flex:1}
+.fgrp-cnt{font-family:var(--mono);font-size:10px;color:#4a6fa5;background:rgba(25,118,210,.1);padding:2px 7px;border-radius:10px;font-weight:600}
 .fgrp-body{overflow:hidden;transition:max-height .28s cubic-bezier(.4,0,.2,1)}
 .fgrp-body.collapsed{max-height:0!important;overflow:hidden}
 
@@ -530,6 +529,19 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 .fr-stat-mini{font-size:9px!important}
 .tog-mini{width:30px!important;height:17px!important}
 .tog-mini::after{width:11px!important;height:11px!important}
+
+
+/* ══ HIERARCHY LEVELS ══ */
+.fgrp[data-level="subdiv"] .fgrp-hd{padding-left:20px;background:rgba(25,118,210,.04)}
+.fgrp[data-level="subdiv"] .fgrp-label{font-size:12px;font-weight:600;color:#2a4a6a}
+.fgrp[data-level="section"] .fgrp-hd{padding-left:34px;background:rgba(25,118,210,.02)}
+.fgrp[data-level="section"] .fgrp-label{font-size:11px;font-weight:600;color:#3d5e8a}
+/* Feeder row — compact but readable */
+.fr-row{padding:7px 10px 6px!important;margin:2px 4px!important}
+.fr-name{font-size:11px!important;font-weight:500!important;color:#1e3a5f!important}
+.fr-top{gap:5px!important}
+.fr-drag{font-size:13px!important}
+.fr-sb{padding:3px 7px!important;font-size:8.5px!important}
 
 /* ══ UPLOAD BUTTON ══ */
 .tb-upload-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:16px;
@@ -1713,7 +1725,11 @@ function buildFeederChecks(){
           const fe=fn.replace(/'/g,"\\'");
           const idx=globalIdx++;
           const status=feederStatus[fn]||'live';
-          const shortName=fn.length>30?fn.substring(0,28)+'…':fn;
+          // Show destination clearly: "ERRAGADA→KALYANNAGAR" or full name
+          const _parts=fn.split('→');
+          const _dest=_parts.length>1?_parts[1].trim():'';
+          const _src=_parts[0].trim().replace(/132\s*KV\s*/i,'').replace(/\s*SS$/i,'');
+          const shortName=_dest?(_src.substring(0,11)+'→'+_dest.substring(0,15)):(fn.length>26?fn.substring(0,24)+'…':fn);
           const togOn=feederState[fn]!==false;
           const showBadge=status!=='live';  // Only show badge for breakdown/idle
 
