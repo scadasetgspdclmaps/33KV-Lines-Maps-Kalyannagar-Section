@@ -543,6 +543,36 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 .fr-drag{font-size:13px!important}
 .fr-sb{padding:3px 7px!important;font-size:8.5px!important}
 
+
+/* ══ FEEDER STATS PANEL ══ */
+#feederStatsPanel{position:fixed;right:-420px;top:52px;bottom:38px;width:400px;z-index:1050;background:#fff;border-left:1px solid #e2e8f0;box-shadow:-4px 0 24px rgba(0,0,0,.12);display:flex;flex-direction:column;transition:right .3s ease;overflow:hidden}
+#feederStatsPanel.open{right:0}
+.fsp-head{padding:14px 16px 12px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;flex-shrink:0;background:#fff}
+.fsp-title{font-size:14px;font-weight:700;color:#0f172a;flex:1}
+.fsp-fn{font-size:10px;font-family:monospace;color:#64748b;margin-top:2px}
+.fsp-close{cursor:pointer;color:#94a3b8;font-size:18px;padding:4px 8px;border-radius:6px;border:none;background:none;transition:.15s}
+.fsp-close:hover{background:#f1f5f9;color:#334155}
+.fsp-body{flex:1;overflow-y:auto;padding:14px 16px}
+.fsp-section{margin-bottom:16px}
+.fsp-sec-title{font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:2px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f1f5f9}
+.fsp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.fsp-stat{background:#f8fafc;border-radius:8px;padding:9px 11px;border:1px solid #f1f5f9}
+.fsp-stat-lbl{font-size:9px;color:#94a3b8;font-family:monospace;letter-spacing:.5px;margin-bottom:3px}
+.fsp-stat-val{font-size:15px;font-weight:700;color:#1e293b;font-family:monospace}
+.fsp-stat-val.ug{color:#2196f3}.fsp-stat-val.oh{color:#ff9800}
+.fsp-field{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid #f1f5f9;border-radius:7px;margin-bottom:5px;background:#fafafa}
+.fsp-field-lbl{font-size:11px;color:#475569;flex:1}
+.fsp-field-val{font-size:11px;font-weight:600;color:#1e293b;font-family:monospace}
+.fsp-input{border:1px solid #e2e8f0;border-radius:5px;padding:3px 7px;font-size:11px;color:#334155;font-family:monospace;width:110px;text-align:right;outline:none}
+.fsp-input:focus{border-color:#2196f3;box-shadow:0 0 0 2px rgba(33,150,243,.1)}
+.fsp-pole-row{display:flex;justify-content:space-between;padding:5px 8px;border-bottom:1px solid #f8fafc;font-size:11px;color:#334155}
+.fsp-save-btn{width:100%;padding:9px;margin-top:8px;border:none;border-radius:8px;background:#2196f3;color:#fff;font-weight:600;font-size:12px;cursor:pointer;transition:.2s}
+.fsp-save-btn:hover{background:#1565c0}
+/* Tree panel white overrides */
+#panel{background:#fff!important;border-right:1px solid #e2e8f0!important}
+.psec,.psec-t{background:#fff!important}
+#feederChecks{background:#fff;padding:0!important}
+
 /* ══ UPLOAD BUTTON ══ */
 .tb-upload-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:16px;
   border:1px solid rgba(0,200,255,.3);background:rgba(0,200,255,.08);color:var(--live);
@@ -695,19 +725,6 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
   <span>ZOOM: <span id="zoomLvl">14</span></span>
   <span style="margin-left:auto;opacity:.4">SCADA · 33KV · TGSPDCL GRID MAP</span>
 </div>
-
-<div id="legend">
-  <div class="leg"><div class="leg-l" style="background:#2196f3;box-shadow:0 0 4px #2196f3"></div>UG</div>
-  <div class="leg"><div class="leg-l" style="background:#ff9800;box-shadow:0 0 4px #ff9800"></div>OH</div>
-  <div class="leg"><div class="leg-l" style="background:#9c27b0;box-shadow:0 0 4px #9c27b0"></div>TRANS</div>
-  <div class="leg"><div class="leg-d" style="background:white;border:2px solid #2196f3"></div>POINT</div>
-  <div class="leg"><svg width="16" height="10"><ellipse cx="8" cy="5" rx="7" ry="4" fill="#ffeb3b" stroke="#333" stroke-width="1.5"/></svg> AB SW</div>
-  <div class="leg"><svg width="11" height="11"><rect width="11" height="11" rx="2" fill="#ffeb3b" stroke="#333" stroke-width="1.5"/></svg> DP</div>
-  <div class="leg"><svg width="13" height="13" viewBox="0 0 14 14"><polygon points="7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5" fill="#ffeb3b" stroke="#333" stroke-width="1"/></svg> CUT</div>
-</div>
-
-<div id="toast"></div>
-<div id="fbStatus"></div>
 
 <!-- ══ FEEDER STATS CARD ══ -->
 <div id="feederStatsCard">
@@ -1172,11 +1189,11 @@ DATA_REGISTRY.forEach(reg=>{
       if(reg.type==='points'||reg.type==='fpoles'){
         layer=L.circleMarker(ll,{radius:3.5,fillColor:'#fff',fillOpacity:1,color:cableColor(cableType,isOH),weight:1.5,pane:'pointsPane',renderer:_CR});
       }else if(reg.type==='cut'){
-        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><polygon points='7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5' fill='#ffeb3b' stroke='#333' stroke-width='1'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
+        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><line x1='2' y1='2' x2='12' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='2' x2='2' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
       regType='cut';
       }else if(reg.type==='ab'||reg.type==='dp'){
         const isAB=(reg.type==='ab');
-        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='10'><ellipse cx='8' cy='5' rx='7' ry='4' fill='#ffeb3b' stroke='#333' stroke-width='1.5'/></svg>`,iconSize:[16,10],iconAnchor:[8,5]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13'><rect width='13' height='13' rx='2' fill='#ffeb3b' stroke='#333' stroke-width='2'/></svg>`,iconSize:[13,13],iconAnchor:[6,6]}),pane:'pointsPane'});
+        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='22' height='16' viewBox='0 0 22 16'><line x1='0' y1='8' x2='6' y2='8' stroke='#ff9800' stroke-width='1.5'/><circle cx='11' cy='8' r='6' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1.5'/><rect x='5.5' y='5.5' width='11' height='3' rx='1' fill='#ff9800'/><circle cx='6.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><circle cx='15.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><line x1='16' y1='8' x2='22' y2='8' stroke='#ff9800' stroke-width='1.5'/></svg>`,iconSize:[22,16],iconAnchor:[11,8]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='18' viewBox='0 0 16 18'><line x1='4' y1='0' x2='4' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='0' x2='12' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='4' y1='7' x2='12' y2='7' stroke='#2196f3' stroke-width='2' stroke-linecap='round'/><circle cx='4' cy='3' r='2' fill='#2196f3'/><circle cx='12' cy='3' r='2' fill='#2196f3'/></svg>`,iconSize:[16,18],iconAnchor:[8,9]}),pane:'pointsPane'});
       }else if(reg.type.startsWith('ss33')){
         const h=`<div class="ss33-wrap"><div class="ss33-ring"></div><div class="ss33-core"><span class="ss33-bolt">⚡</span></div></div>`;
         layer=L.marker(ll,{zIndexOffset:1000,icon:L.divIcon({className:'',html:h,iconSize:[36,36],iconAnchor:[18,18]})});
@@ -2809,6 +2826,174 @@ function getPoleTypeFromRow(row){return fuzzyGet(row,['type_of_pole','Type of Po
 function getPoleFeederToFromRow(row){return fuzzyGet(row,['pole_feeding_to','Pole Feeding to','Pole Feeding To','pole_feeding_to']);}
 function getNatureFromRow(row){return fuzzyGet(row,['nature_of_feeder','Nature of Feeder','feeder_link_line','feeder/link line','feeder_type']);}
 
+// ══════════════════════════════════════════════════
+// WHITE PANEL HELPERS
+// ══════════════════════════════════════════════════
+function setAllFeeders(on){
+  feederNames.forEach(fn=>feederState[fn]=on);
+  updateVisibility();buildFeederChecks();
+}
+
+// ══════════════════════════════════════════════════
+// DOWNLOAD CSV PER FEEDER
+// ══════════════════════════════════════════════════
+function downloadFeederCSV2(fn,e){
+  if(e)e.stopPropagation();
+  const entry=Object.values(uploadedFiles||{}).find(f=>f.feederName===fn);
+  if(!entry||!entry.rows||!entry.rows.length){toast('No data for this feeder',2000);return;}
+  const keys=Object.keys(entry.rows[0]);
+  const csv=[keys.join(','),...entry.rows.map(r=>keys.map(k=>String(r[k]||'').replace(/,/g,';')).join(','))].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=(fn.replace(/[→\s\/]/g,'_')||'feeder')+'.csv';a.click();
+  toast('📥 Downloading: '+fn.substring(0,30),2000);
+}
+
+// ══════════════════════════════════════════════════
+// FEEDER STATS SLIDE PANEL
+// ══════════════════════════════════════════════════
+let _fspFeeder=null;
+function toggleFeederStatsByName(fn,e){
+  if(e)e.stopPropagation();
+  const panel=document.getElementById('feederStatsPanel');
+  if(!panel)return;
+  if(_fspFeeder===fn&&panel.classList.contains('open')){
+    panel.classList.remove('open');_fspFeeder=null;return;
+  }
+  _fspFeeder=fn;
+  panel.classList.add('open');
+  document.getElementById('fspFeederName').textContent=fn;
+  renderFSPBody(fn);
+}
+
+function renderFSPBody(fn){
+  const body=document.getElementById('fspBody');if(!body)return;
+  body.innerHTML='<div style="color:#94a3b8;font-size:12px;text-align:center;padding:30px">Loading…</div>';
+  const s=calcFeederStats(fn);
+  const meta=feederMetaMap[fn]||{};
+  const rows=Object.values(uploadedFiles||{}).find(f=>f.feederName===fn)?.rows||[];
+  const poleTypes={};
+  rows.forEach(r=>{const pt=getPoleTypeFromRow(r);if(pt)poleTypes[pt]=(poleTypes[pt]||0)+1;});
+  const srcSS=rows.length?fuzzyGet(rows[0],['name_of_33_11_SS','name_of_the_33_11_SS','Name of 33/11 SS']):'—';
+  const cableKind=s.ohKm>0&&s.ugKm>0?'UG+OH (Mixed)':s.ohKm>0?'Full OH':'Full UG';
+  
+  fetch(FIREBASE_URL+'/feederOpsData/'+safeFbKey(fn)+'.json').then(r=>r.json()).catch(()=>({})).then(ops=>{
+    ops=ops||{};
+    const ptHtml=Object.keys(poleTypes).length
+      ?Object.entries(poleTypes).map(([t,n])=>`<div class="fsp-pole-row"><span>${t}</span><span style="font-weight:700;font-family:monospace">${n} Nos.</span></div>`).join('')
+      :'';
+    body.innerHTML=`
+      <div class="fsp-section">
+        <div class="fsp-sec-title">CABLE METRICS</div>
+        <div class="fsp-grid">
+          <div class="fsp-stat"><div class="fsp-stat-lbl">POLES / POINTS</div><div class="fsp-stat-val">${s.poles}</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">CABLE TYPE</div><div class="fsp-stat-val" style="font-size:12px">${cableKind}</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">TOTAL LENGTH</div><div class="fsp-stat-val">${s.totalKm.toFixed(3)} km</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">UG LENGTH</div><div class="fsp-stat-val ug">${s.ugKm.toFixed(3)} km</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">OH LENGTH</div><div class="fsp-stat-val oh">${s.ohKm.toFixed(3)} km</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">AB SWITCHES</div><div class="fsp-stat-val">${s.abCnt}</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">DP STRUCTURES</div><div class="fsp-stat-val">${s.dpCnt}</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">CUT POINTS</div><div class="fsp-stat-val">${s.cutCnt}</div></div>
+        </div>
+      </div>
+      <div class="fsp-section">
+        <div class="fsp-sec-title">SOURCE</div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Regular Source 33/11KV SS</span><span class="fsp-field-val">${srcSS||'—'}</span></div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Alternate Source 33/11KV SS</span><span class="fsp-field-val">${ops.altSrc||'—'}</span></div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Division</span><span class="fsp-field-val">${meta.div||'—'}</span></div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Section</span><span class="fsp-field-val">${meta.sec||'—'}</span></div>
+      </div>
+      ${ptHtml?`<div class="fsp-section"><div class="fsp-sec-title">POLE STRUCTURE TYPES</div>${ptHtml}</div>`:''}
+      <div class="fsp-section">
+        <div class="fsp-sec-title">LOAD DATA</div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Max Recorded Load (Amps)</span><input class="fsp-input" id="fsp-ma" value="${ops.maxAmps||''}" placeholder="—"/></div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Max Load Date</span><input class="fsp-input" id="fsp-md" value="${ops.maxDate||''}" placeholder="DD/MM/YYYY"/></div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Avg Load 3 Months (Amps)</span><input class="fsp-input" id="fsp-aa" value="${ops.avgAmps||''}" placeholder="—"/></div>
+      </div>
+      <div class="fsp-section">
+        <div class="fsp-sec-title">OPERATIONAL HISTORY (Last 1 Year)</div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Trippings / Interruptions</span><input class="fsp-input" id="fsp-tr" value="${ops.trips||''}" placeholder="—"/></div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Breakdowns</span><input class="fsp-input" id="fsp-br" value="${ops.breakdowns||''}" placeholder="—"/></div>
+      </div>
+      <button class="fsp-save-btn" onclick="saveFSPData()">💾 Save to Cloud</button>`;
+  });
+}
+
+function saveFSPData(){
+  if(!_fspFeeder)return;
+  const ops={maxAmps:document.getElementById('fsp-ma')?.value||'',maxDate:document.getElementById('fsp-md')?.value||'',avgAmps:document.getElementById('fsp-aa')?.value||'',trips:document.getElementById('fsp-tr')?.value||'',breakdowns:document.getElementById('fsp-br')?.value||'',updatedAt:new Date().toISOString()};
+  fetch(FIREBASE_URL+'/feederOpsData/'+safeFbKey(_fspFeeder)+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(ops)})
+    .then(r=>r.ok?toast('✅ Saved',2000):toast('Save failed',2000)).catch(()=>toast('Save failed',2000));
+}
+
+// ══════════════════════════════════════════════════
+// SUBSTATION SEARCH
+// ══════════════════════════════════════════════════
+function flyToSS(ss){
+  map.flyTo([ss.lat,ss.lon],17,{animate:true,duration:.8});
+  const linkedFeeders=[];
+  allLayers.forEach(item=>{
+    if(!item.reg||!['points','fpoles'].includes(item.reg.type))return;
+    const p=item.layer.feature?.properties||{};
+    const sn=fuzzyGet(p,['name_of_33_11_SS','name_of_the_33_11_SS','Name of 33/11 SS'])||'';
+    const ssShort=ss.name.replace(/33\/11KV\s*/i,'').replace(/\s*SS$/i,'').trim().substring(0,8).toUpperCase();
+    if(sn.toUpperCase().includes(ssShort)&&!linkedFeeders.includes(item.feederName))
+      linkedFeeders.push(item.feederName);
+  });
+  const statusList=linkedFeeders.map(fn=>{
+    const s=feederStatus[fn]||'live';
+    const col=s==='live'?'#00c853':s==='breakdown'?'#ff1744':'#9e9e9e';
+    return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f1f5f9"><span style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></span><span style="font-size:11px">${fn.split('→')[1]?.trim()||fn}</span></div>`;
+  }).join('');
+  L.popup({maxWidth:300}).setLatLng([ss.lat,ss.lon])
+    .setContent(`<div style="font-weight:700;font-size:13px;margin-bottom:6px">${ss.name}</div><div style="font-size:10px;color:#64748b;margin-bottom:8px">${ss.section||''} · ${ss.division||''}</div>${linkedFeeders.length?'<div style="font-size:10px;font-weight:600;color:#94a3b8;margin-bottom:4px">FEEDERS:</div>'+statusList:'<div style="font-size:11px;color:#94a3b8">No feeders linked yet</div>'}`)
+    .openOn(map);
+}
+
+// ══════════════════════════════════════════════════
+// ENHANCED SEARCH — feeders + substations
+// ══════════════════════════════════════════════════
+(function(){
+  const inp=document.getElementById('srchInput');
+  const dd=document.getElementById('fsDropdown');
+  if(!inp||!dd)return;
+  function showDD(q){
+    q=q.trim();if(!q){dd.style.display='none';return;}
+    const ql=q.toLowerCase();
+    const fm=[...feederNames].filter(fn=>fn.toLowerCase().includes(ql)).slice(0,5);
+    const sm=(STATIC_SS33||[]).filter(ss=>ss.name.toLowerCase().includes(ql)).slice(0,4);
+    if(!fm.length&&!sm.length){dd.style.display='none';return;}
+    dd.innerHTML='';
+    if(fm.length){
+      const h=Object.assign(document.createElement('div'),{textContent:'FEEDERS'});
+      h.style.cssText='padding:4px 10px;font-size:9px;color:#94a3b8;font-family:monospace;letter-spacing:1px;background:#f8fafc;border-bottom:1px solid #f1f5f9';
+      dd.appendChild(h);
+      fm.forEach(fn=>{
+        const d=document.createElement('div');d.className='fsd-item';
+        const sc=feederStatus[fn]||'live';const col=sc==='live'?'#00c853':sc==='breakdown'?'#ff1744':'#9e9e9e';
+        d.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></span><span class="fsd-name">${fn.split('→')[1]?.trim()||fn}</span><span class="fsd-src">${extractEHT(fn)}</span>`;
+        d.onclick=()=>{dd.style.display='none';inp.value='';focusFeeder(fn);const pts=allLayers.filter(i=>i.feederName===fn&&i.layer.getLatLngs);if(pts.length){try{const b=L.latLngBounds(pts.flatMap(i=>i.layer.getLatLngs().flat?i.layer.getLatLngs().flat():i.layer.getLatLngs()));map.flyToBounds(b,{padding:[60,60],maxZoom:17,animate:true,duration:.7});}catch(e){}}};
+        dd.appendChild(d);
+      });
+    }
+    if(sm.length){
+      const h=Object.assign(document.createElement('div'),{textContent:'33/11KV SUBSTATIONS'});
+      h.style.cssText='padding:4px 10px;font-size:9px;color:#92400e;font-family:monospace;letter-spacing:1px;background:#fffbeb;border-bottom:1px solid #f1f5f9';
+      dd.appendChild(h);
+      sm.forEach(ss=>{
+        const d=document.createElement('div');d.style.cssText='padding:7px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9';
+        d.innerHTML=`<div style="font-size:11px;font-weight:600;color:#92400e">${ss.name}</div><div style="font-size:9px;color:#94a3b8">${ss.section||''} · ${ss.division||''}</div>`;
+        d.onmouseover=()=>d.style.background='#fffbeb';d.onmouseout=()=>d.style.background='';
+        d.onclick=()=>{dd.style.display='none';inp.value='';flyToSS(ss);};
+        dd.appendChild(d);
+      });
+    }
+    dd.style.display='block';
+  }
+  inp.addEventListener('input',e=>showDD(e.target.value));
+  inp.addEventListener('keydown',e=>{if(e.key==='Escape'){dd.style.display='none';inp.value='';}});
+  document.addEventListener('click',e=>{if(!inp.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';});
+})();
+
 map.on('zoomend',syncLabels);
 document.getElementById('loader').addEventListener('click',dismissLoader);
 
@@ -2878,11 +3063,22 @@ function _getRowVal(row,...keys){
 }
 
 function parsePoleNo(raw){
-  const s=String(raw||'').trim().toLowerCase();
-  const m=s.match(/^(\d+)([a-z].*)$/);
-  if(m)return{base:parseInt(m[1]),spur:m[2],spurLabel:s,isMain:false};
-  const n=parseInt(s);
-  return{base:isNaN(n)?Infinity:n,spur:null,spurLabel:null,isMain:true};
+  const s=String(raw||'').trim();const sl=s.toLowerCase();
+  // Format 1: "40B1","40b1" — no slash
+  const m1=sl.match(/^(\d+)([a-z])(\d+)$/);
+  if(m1)return{base:parseInt(m1[1]),branchLetter:m1[2].toUpperCase(),branchSeq:parseInt(m1[3]),spurKey:m1[2].toUpperCase(),isMain:false,raw:s};
+  // Format 2: "40/A/1","40/B/2","40/A/3/A/1" — slash separated
+  const m2=s.match(/^(\d+)\/(.+)$/i);
+  if(m2){
+    const parts=m2[2].split('/');const topBranch=parts[0].toUpperCase();
+    const spurKey=parts.length>2?parts.slice(0,-1).join('/').toUpperCase():topBranch;
+    return{base:parseInt(m2[1]),branchLetter:topBranch,branchSeq:parseInt(parts[parts.length-1])||0,spurKey,isMain:false,raw:s};
+  }
+  // Legacy: "40b1" style where letter is mid-string
+  const m3=sl.match(/^(\d+)([a-z].*)$/);
+  if(m3)return{base:parseInt(m3[1]),branchLetter:m3[2][0].toUpperCase(),branchSeq:parseInt(m3[2].replace(/[^0-9]/g,''))||0,spurKey:m3[2][0].toUpperCase(),isMain:false,raw:s};
+  const n=parseInt(sl);
+  return{base:isNaN(n)?Infinity:n,branchLetter:null,branchSeq:0,spurKey:null,isMain:true,raw:s};
 }
 
 // ── Draw a single polyline segment with correct color + flow animation ──
@@ -3021,9 +3217,9 @@ function renderUploadedRows(rows,sourceFileName){
     _drawPoleSequence(feederName, mainPoles, regLine);
 
     // ── Draw SPUR BRANCHES ──
-    Object.entries(spurGroups).forEach(([baseNum,spurPoles])=>{
-      const parent=mainPoles.find(p=>p.pn.base===parseInt(baseNum));
-      const branchPoles=parent?[parent,...spurPoles]:spurPoles;
+    Object.entries(spurGroups).forEach(([gk,grp])=>{
+      const parent=mainPoles.find(p=>p.pn.base===grp.base);
+      const branchPoles=parent?[parent,...grp.poles]:grp.poles;
       if(branchPoles.length>=2)_drawPoleSequence(feederName,branchPoles,regLine);
     });
 
@@ -3061,7 +3257,7 @@ function renderUploadedRows(rows,sourceFileName){
           iconSize:[13,13],iconAnchor:[6,6]}),pane:'pointsPane'});
       }else if(isCut){
         regType='cut';
-        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><polygon points='7,0.5 8.6,5 13.5,5 9.5,8 11,13 7,10 3,13 4.5,8 0.5,5 5.4,5' fill='#ffeb3b' stroke='#333' stroke-width='1'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
+        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><line x1='2' y1='2' x2='12' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='2' x2='2' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
       }else if(p.pn.spur){
         layer=L.circleMarker([p.lat,p.lng],{radius:3,fillColor:'#ffe082',fillOpacity:1,color:'#ff9800',weight:1.5,pane:'pointsPane',renderer:_CR});
       }else{
@@ -3351,5 +3547,16 @@ setTimeout(()=>{
   fbLoadUploadedFiles();
 }, 3500);
 </script>
+
+<div id="feederStatsPanel">
+  <div class="fsp-head">
+    <div><div class="fsp-title">// FEEDER STATISTICS</div><div class="fsp-fn" id="fspFeederName">—</div></div>
+    <button class="fsp-close" onclick="document.getElementById('feederStatsPanel').classList.remove('open');_fspFeeder=null;">✕</button>
+  </div>
+  <div class="fsp-body" id="fspBody">
+    <div style="color:#94a3b8;font-size:12px;text-align:center;padding:40px">Select a feeder</div>
+  </div>
+</div>
+
 </body>
 </html>
