@@ -673,12 +673,108 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 #fbStatus.loading{background:rgba(0,200,255,.1);border:1px solid rgba(0,200,255,.25);color:var(--live)}
 #fbStatus.error{background:rgba(255,23,68,.12);border:1px solid rgba(255,23,68,.3);color:#ff4466}
 
+/* ══════════════════════════════════════════════════════════════
+   FEEDER STATS PANEL — REDESIGNED HERO UI (09 May 2026)
+   ══════════════════════════════════════════════════════════════ */
+#feederStatsPanel{width:430px!important}
+.fsp-head{padding:12px 14px 10px!important;gap:6px!important;background:linear-gradient(180deg,#fff 0%,#f8fafc 100%)!important}
+.fsp-title{font-size:11px!important;font-family:var(--mono)!important;color:#3b82f6!important;letter-spacing:2px!important;margin-bottom:2px!important}
+.fsp-fn{font-size:11px!important;color:#0f172a!important;font-weight:600!important;font-family:var(--sans)!important;line-height:1.3;word-break:break-word;white-space:normal!important}
+.fsp-dl-btn{padding:5px 9px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;
+  font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;
+  border-radius:6px;cursor:pointer;transition:all .18s;white-space:nowrap;flex-shrink:0}
+.fsp-dl-btn:hover{background:#dbeafe;border-color:#3b82f6;transform:translateY(-1px);box-shadow:0 2px 8px rgba(59,130,246,.25)}
+.fsp-dl-xlsx{border-color:#86efac;background:#f0fdf4;color:#15803d}
+.fsp-dl-xlsx:hover{background:#dcfce7;border-color:#22c55e;box-shadow:0 2px 8px rgba(34,197,94,.25)}
+
+/* Hero block */
+.fsp-hero{margin:-14px -16px 16px;padding:18px 18px 14px;
+  background:linear-gradient(135deg,#1e3a8a 0%,#3b82f6 50%,#0891b2 100%);
+  color:#fff;position:relative;overflow:hidden}
+.fsp-hero::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.18),transparent 50%),
+             radial-gradient(circle at 20% 80%,rgba(0,200,255,.15),transparent 50%);
+  pointer-events:none}
+.fsp-hero-title{font-family:var(--sans);font-size:16px;font-weight:700;color:#fff;
+  letter-spacing:.3px;margin-bottom:3px;line-height:1.2;position:relative;z-index:1;
+  text-shadow:0 1px 2px rgba(0,0,0,.2)}
+.fsp-hero-sub{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.78);
+  letter-spacing:.5px;margin-bottom:14px;position:relative;z-index:1}
+.fsp-hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;position:relative;z-index:1}
+.fsp-kpi{background:rgba(255,255,255,.13);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.18);border-radius:9px;
+  padding:9px 6px 8px;text-align:center;transition:.18s}
+.fsp-kpi:hover{background:rgba(255,255,255,.2);transform:translateY(-1px)}
+.fsp-kpi-val{font-family:var(--mono);font-size:18px;font-weight:700;color:#fff;line-height:1;margin-bottom:3px;
+  text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.fsp-kpi-lbl{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.75);
+  letter-spacing:1.2px;font-weight:600}
+.fsp-bar-wrap{display:flex;height:7px;border-radius:4px;overflow:hidden;
+  background:rgba(255,255,255,.15);margin-top:14px;position:relative;z-index:1}
+.fsp-bar-ug{background:linear-gradient(90deg,#60a5fa,#2196f3);transition:width .4s}
+.fsp-bar-oh{background:linear-gradient(90deg,#fbbf24,#ff9800);transition:width .4s}
+.fsp-bar-lbl{display:flex;gap:14px;font-family:var(--mono);font-size:9px;
+  color:rgba(255,255,255,.85);margin-top:6px;letter-spacing:.5px;position:relative;z-index:1;align-items:center}
+.fsp-bar-d{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+/* Stats with category accents */
+.fsp-stat-ab{border-left:3px solid #ff9800!important}
+.fsp-stat-dp{border-left:3px solid #9c27b0!important}
+
+/* Pole list */
+.fsp-pole-list{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+  padding:4px 0;max-height:240px;overflow-y:auto}
+.fsp-pole-list::-webkit-scrollbar{width:4px}
+.fsp-pole-list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+.fsp-pole-row{display:flex;justify-content:space-between;align-items:center;
+  padding:7px 12px!important;border-bottom:1px solid #f1f5f9;font-size:11px;color:#1e293b!important;
+  transition:background .15s}
+.fsp-pole-row:last-child{border:none}
+.fsp-pole-row:hover{background:#eff6ff}
+
+/* Wide input for alt source */
+.fsp-input-wide{width:170px!important;text-align:left!important;font-family:var(--sans)!important;font-size:10px!important}
+
+/* ── PANEL — make feeder list fill all available space ── */
+#panel{display:flex!important;flex-direction:column!important}
+#panel > .psec:first-of-type{flex:1!important;display:flex!important;flex-direction:column!important;min-height:0!important}
+#panel > .psec:first-of-type > #feederChecks{flex:1!important;overflow-y:auto!important;min-height:0!important}
+#feederChecks::-webkit-scrollbar{width:6px}
+#feederChecks::-webkit-scrollbar-thumb{background:#bfdbfe;border-radius:3px}
+#feederChecks::-webkit-scrollbar-track{background:#f1f5f9}
+
+/* ── FEEDER NAME — show the full name (no clipping) ── */
+.fr-name{
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  word-break:break-word!important;
+  line-height:1.35!important;
+  font-size:11.5px!important;
+}
+.fr-top{align-items:flex-start!important}
+.fr-row{padding:8px 9px 7px!important}
+.fr-actions{flex-shrink:0;margin-top:1px}
+.fr-act{padding:2px 5px!important;font-size:11px!important}
+
+/* ── LAYER-TYPE LEGEND ICONS — match the actual map symbology ── */
+.lswatch.legend-icon{width:auto;height:auto;display:flex;align-items:center;justify-content:center;
+  background:transparent!important;border:none!important;box-shadow:none!important;flex-shrink:0;width:18px;height:18px}
+.lswatch.legend-icon svg{display:block}
+.lrow.off .lswatch.legend-icon{opacity:.3}
+
+/* ── OFFLINE / SLOWNESS HINT ── */
+#fbStatus.none{background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3);color:#64748b}
+
+/* ── CUT-POINT marker should NOT scale weirdly with zoom ── */
+.cut-pt-icon svg{display:block}
+
 </style>
 </head>
 <body>
 <div id="loader">
   <div class="ld-logo">TGSPDCL</div>
-  <div class="ld-sub">KALYANNAGAR SECTION · 33KV</div>
+  <div class="ld-sub">SCADA GRID MAP · 33KV</div>
   <div class="ld-bar"><div class="ld-fill" id="ldfill"></div></div>
 </div>
 
@@ -807,15 +903,31 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
   <div class="rcard" id="rc-layers">
     <div class="rcard-hd" onclick="toggleRcard('rc-layers')"><span class="rcard-title">// LAYER TYPES</span><span class="rcard-arrow">▾</span></div>
     <div class="rcard-body">
-      <div class="lrow" id="lyr-ug-lines" onclick="toggleLyr('ug-lines')"><div class="lswatch" style="background:#2196f3;box-shadow:0 0 5px #2196f3"></div><div class="lname">UG Lines</div><div class="lcnt" id="cnt-ug-lines">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-oh-lines" onclick="toggleLyr('oh-lines')"><div class="lswatch" style="background:#ff9800;box-shadow:0 0 5px #ff9800"></div><div class="lname">OH Lines</div><div class="lcnt" id="cnt-oh-lines">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-points"   onclick="toggleLyr('points')"><div class="lswatch dot" style="background:#0d1b2a;border-color:#00c8ff"></div><div class="lname">Cable Points</div><div class="lcnt" id="cnt-points">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-dp"       onclick="toggleLyr('dp')"><div class="lswatch dot" style="background:#1a0033;border-color:#9c27b0"></div><div class="lname">DP Structures</div><div class="lcnt" id="cnt-dp">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-ab"       onclick="toggleLyr('ab')"><div class="lswatch dot" style="background:#1a0a00;border-color:#ff9800"></div><div class="lname">AB Switches</div><div class="lcnt" id="cnt-ab">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-cut"      onclick="toggleLyr('cut')"><div class="lswatch dot" style="background:#0d1b2a;border-color:#78909c"></div><div class="lname">Cut Points</div><div class="lcnt" id="cnt-cut">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-ss33"     onclick="toggleLyr('ss33')"><div class="lswatch dot" style="background:#2196f3;border-color:#fff;border-radius:50%"></div><div class="lname">33/11KV SS</div><div class="lcnt" id="cnt-ss33">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-ehts"     onclick="toggleLyr('ehts')"><div class="lswatch dot" style="background:#800080;border-color:#fff"></div><div class="lname">EHT SS</div><div class="lcnt" id="cnt-ehts">—</div><div class="tog"></div></div>
-      <div class="lrow" id="lyr-fsegs"    onclick="toggleLyr('fsegs')"><div class="lswatch" style="background:#e8718d;height:2px"></div><div class="lname">Feeder Segments</div><div class="lcnt" id="cnt-fsegs">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-ug-lines" onclick="toggleLyr('ug-lines')">
+        <div class="lswatch legend-icon"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="1" y1="3" x2="19" y2="3" stroke="#2196f3" stroke-width="3.2" stroke-linecap="round" style="filter:drop-shadow(0 0 2px #2196f3)"/></svg></div>
+        <div class="lname">UG Lines</div><div class="lcnt" id="cnt-ug-lines">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-oh-lines" onclick="toggleLyr('oh-lines')">
+        <div class="lswatch legend-icon"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="1" y1="3" x2="19" y2="3" stroke="#ff9800" stroke-width="3.2" stroke-linecap="round" style="filter:drop-shadow(0 0 2px #ff9800)"/></svg></div>
+        <div class="lname">OH Lines</div><div class="lcnt" id="cnt-oh-lines">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-points" onclick="toggleLyr('points')">
+        <div class="lswatch legend-icon"><svg width="11" height="11" viewBox="0 0 11 11"><circle cx="5.5" cy="5.5" r="3.6" fill="#fff" stroke="#2196f3" stroke-width="1.6"/></svg></div>
+        <div class="lname">Cable Points</div><div class="lcnt" id="cnt-points">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-dp" onclick="toggleLyr('dp')">
+        <div class="lswatch legend-icon"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="3" y1="1" x2="3" y2="15" stroke="#9c27b0" stroke-width="2.4" stroke-linecap="round"/><line x1="11" y1="1" x2="11" y2="15" stroke="#9c27b0" stroke-width="2.4" stroke-linecap="round"/><line x1="3" y1="6" x2="11" y2="6" stroke="#9c27b0" stroke-width="1.8"/><circle cx="3" cy="3" r="1.6" fill="#9c27b0"/><circle cx="11" cy="3" r="1.6" fill="#9c27b0"/></svg></div>
+        <div class="lname">DP Structures</div><div class="lcnt" id="cnt-dp">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-ab" onclick="toggleLyr('ab')">
+        <div class="lswatch legend-icon"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="2" width="14" height="14" rx="2" transform="rotate(45 9 9)" fill="#ff9800" stroke="#fff" stroke-width="1.4" style="filter:drop-shadow(0 0 2px #ff9800)"/><line x1="4.5" y1="9" x2="13.5" y2="9" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></div>
+        <div class="lname">AB Switches</div><div class="lcnt" id="cnt-ab">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-cut" onclick="toggleLyr('cut')">
+        <div class="lswatch legend-icon"><svg width="12" height="12" viewBox="0 0 12 12"><line x1="2" y1="2" x2="10" y2="10" stroke="#ffeb3b" stroke-width="2.4" stroke-linecap="round"/><line x1="10" y1="2" x2="2" y2="10" stroke="#ffeb3b" stroke-width="2.4" stroke-linecap="round"/></svg></div>
+        <div class="lname">Cut Points</div><div class="lcnt" id="cnt-cut">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-ss33" onclick="toggleLyr('ss33')">
+        <div class="lswatch legend-icon"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.2" fill="none" stroke="#1e88e5" stroke-width="1.5" stroke-dasharray="2 1.5"/><circle cx="9" cy="9" r="4.5" fill="#1e88e5" stroke="#fff" stroke-width="1.2"/><text x="9" y="11.5" text-anchor="middle" font-size="6" fill="#fff" font-weight="700">⚡</text></svg></div>
+        <div class="lname">33/11KV SS</div><div class="lcnt" id="cnt-ss33">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-ehts" onclick="toggleLyr('ehts')">
+        <div class="lswatch legend-icon"><svg width="20" height="14" viewBox="0 0 20 14"><rect x="1.5" y="1.5" width="17" height="11" rx="2" fill="rgba(30,10,0,.85)" stroke="#ff7800" stroke-width="1.6"/><text x="10" y="9" text-anchor="middle" font-size="6" fill="#ff7800" font-weight="700">⚡EHT</text></svg></div>
+        <div class="lname">EHT SS</div><div class="lcnt" id="cnt-ehts">—</div><div class="tog"></div></div>
+      <div class="lrow" id="lyr-fsegs" onclick="toggleLyr('fsegs')"><div class="lswatch" style="background:#e8718d;height:2px"></div><div class="lname">Feeder Segments</div><div class="lcnt" id="cnt-fsegs">—</div><div class="tog"></div></div>
     </div>
   </div>
   <div class="rcard" id="rc-cable">
@@ -841,6 +953,8 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
           <select class="hier-sel" id="hier-sub" onchange="updateHierFilters()"><option value="ALL">ALL SUB DIVISIONS</option></select></div>
         <div><div class="hier-lbl">SECTION</div>
           <select class="hier-sel" id="hier-sec" onchange="updateHierFilters()"><option value="ALL">ALL SECTIONS</option></select></div>
+        <div><div class="hier-lbl">FEEDER TYPE (33KV / LINK LINE)</div>
+          <select class="hier-sel" id="hier-nat" onchange="updateHierFilters()"><option value="ALL">ALL TYPES</option></select></div>
         <div><div class="hier-lbl">FEEDER</div>
           <select class="hier-sel" id="hier-fn" onchange="updateHierFilters()"><option value="ALL">ALL FEEDERS</option></select></div>
       </div>
@@ -875,14 +989,18 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 <script>
 // ══════════════════════════════════════════════════
 // MAP — Google Maps-grade smoothness
+// Performance tuning (09 May 2026):
+//   - preferCanvas:true → polylines + circle markers render on canvas (much faster than SVG for thousands of features)
+//   - keepBuffer high so panning never blanks tiles
+//   - wheelDebounceTime + zoomDelta tuned for buttery scroll
 // ══════════════════════════════════════════════════
 const map = L.map('map',{
   center:[17.4400,78.3900], zoom:14, zoomControl:false,
-  preferCanvas:false,
+  preferCanvas:true,
   zoomAnimation:true, zoomAnimationThreshold:4,
   fadeAnimation:true, markerZoomAnimation:true,
   inertia:true, inertiaDeceleration:3500, inertiaMaxSpeed:Infinity,
-  scrollWheelZoom:true, wheelDebounceTime:10, wheelPxPerZoomLevel:60,
+  scrollWheelZoom:true, wheelDebounceTime:24, wheelPxPerZoomLevel:80,
   zoomSnap:0.25, zoomDelta:0.5,
   doubleClickZoom:true, keyboard:true, keyboardPanDelta:80,
 });
@@ -902,8 +1020,8 @@ window.addEventListener('resize',()=>map.invalidateSize());
 // ── BASEMAPS ──
 const _tileOpts = {
   maxZoom:22, maxNativeZoom:19,
-  updateWhenIdle:false, updateWhenZooming:true,
-  keepBuffer:8, tileSize:256, crossOrigin:true, maxZoom:22, maxNativeZoom:19,
+  updateWhenIdle:true, updateWhenZooming:false,
+  keepBuffer:6, tileSize:256, crossOrigin:true,
 };
 const _bmDefs = {
   dark:      ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{..._tileOpts,subdomains:'abcd'}],
@@ -973,10 +1091,15 @@ function diamondIcon(color){
   return L.divIcon({className:'',html:s,iconSize:[11,11],iconAnchor:[5,5]});
 }
 
-// Cable color: UG=blue, OH=orange, transition=purple
+// Cable color: UG=blue, OH=orange.
+// Transition rule (per Naresh, 09 May 2026):
+//   "UG TO OH" → ORANGE (destination is OH)
+//   "OH TO UG" → BLUE   (destination is UG)
 function cableColor(typeRaw,isOH){
   const t=String(typeRaw||'').toUpperCase().replace(/[\s_]/g,'');
-  if(t.includes('UGTOH')||t.includes('OHTUG')||t==='TRANSITION'||t==='TRANS')return'#9c27b0';
+  if(t.includes('UGTOH'))return'#ff9800';   // ending in OH → orange
+  if(t.includes('OHTUG'))return'#2196f3';   // ending in UG → blue
+  if(t==='TRANSITION'||t==='TRANS')return'#ff9800'; // generic trans defaults to OH-side
   if(isOH||t==='OH'||t==='OVERHEAD')return'#ff9800';
   return'#2196f3';
 }
@@ -1897,7 +2020,14 @@ document.getElementById('srchInput').addEventListener('keydown',e=>{
   }
 });
 
-map.on('mousemove',e=>{document.getElementById('coords').textContent=e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);});
+// Throttled coord display — was firing every mouse move which thrashed DOM updates
+let _lastCoordTs=0;
+map.on('mousemove',e=>{
+  const now=performance.now();
+  if(now-_lastCoordTs<60)return;
+  _lastCoordTs=now;
+  document.getElementById('coords').textContent=e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);
+});
 
 // ══════════════════════════════════════════════════
 // EDIT MODE ENGINE v2
@@ -2338,6 +2468,7 @@ function dismissLoader(){
 
 setTimeout(()=>{
   dismissLoader();renderStaticSS();buildFeederChecks();updateCounts();buildDropdownOptions();
+  if(typeof buildHierFilters==='function')buildHierFilters();
   feederNames.forEach(fn=>attachSegmentDistanceClick(fn));
   (window.requestIdleCallback||setTimeout)(()=>{requestVisibilityUpdate();syncLabels();},{timeout:500});
   toast('Kalyannagar 33KV section loaded — '+allLayers.length+' features',3000);
@@ -2347,6 +2478,9 @@ setTimeout(()=>dismissLoader(),5000);
 function syncLabels(){
   const z=map.getZoom();
   const showPoleLabels=z>=17;const showSSLabels=z>=13;
+  // Hide energy-flow overlays when zoomed far out — saves a TON of CPU
+  // (each flow polyline runs a CSS animation continuously).
+  const showFlow=z>=12;
   allLayers.forEach(item=>{
     if(item.reg.type.startsWith('ss')||item.reg.type.startsWith('eht')){
       if(item.layer.getTooltip){const tip=item.layer.getTooltip();if(tip){if(showSSLabels&&map.hasLayer(item.layer))item.layer.openTooltip&&item.layer.openTooltip();else item.layer.closeTooltip&&item.layer.closeTooltip();}}
@@ -2354,6 +2488,12 @@ function syncLabels(){
     if(item.poleNo){
       if(showPoleLabels&&map.hasLayer(item.layer)){if(!item.layer.getTooltip())item.layer.bindTooltip(item.poleNo,{permanent:true,direction:'right',className:'pole-label',offset:[6,0]});}
       else{if(item.layer.getTooltip())item.layer.unbindTooltip();}
+    }
+    // Manage flow animation by zoom
+    if(item.layer.flowLayer){
+      const cs=feederStatus[item.feederName]||'live';
+      const shouldShow=showFlow&&cs==='live'&&map.hasLayer(item.layer);
+      safelyManageClass(item.layer.flowLayer,'hidden-flow',!shouldShow);
     }
   });
   document.getElementById('zoomLvl').textContent=z;
@@ -2654,41 +2794,102 @@ function animateParticles(ts){
 let _hierFiltered=null; // null = all
 
 function buildHierFilters(){
-  // Extract unique Division/SubDiv/Section from feederMetaMap
-  const divs=new Set(),subs=new Set(),secs=new Set();
-  Object.values(feederMetaMap).forEach(m=>{
-    if(m.div)divs.add(m.div);
-    if(m.sub)subs.add(m.sub);
-    if(m.sec)secs.add(m.sec);
+  // Build a tree {div → {sub → Set(secs)}} so dropdowns cascade properly
+  const tree={};
+  const allRows=[];   // collect all (div,sub,sec,nat) tuples
+  Object.keys(feederMetaMap).forEach(fn=>{
+    const m=feederMetaMap[fn]||{};
+    if(m.div){
+      if(!tree[m.div])tree[m.div]={};
+      if(m.sub){
+        if(!tree[m.div][m.sub])tree[m.div][m.sub]=new Set();
+        if(m.sec)tree[m.div][m.sub].add(m.sec);
+      }
+    }
+    allRows.push({div:m.div,sub:m.sub,sec:m.sec,fn});
   });
-  // Also from allLayers properties as fallback
+  Object.keys(feederHierarchyMap||{}).forEach(fn=>{
+    const h=feederHierarchyMap[fn]||{};
+    if(h.division){
+      if(!tree[h.division])tree[h.division]={};
+      if(h.sub_division){
+        if(!tree[h.division][h.sub_division])tree[h.division][h.sub_division]=new Set();
+        if(h.section)tree[h.division][h.sub_division].add(h.section);
+      }
+    }
+    allRows.push({div:h.division,sub:h.sub_division,sec:h.section,fn});
+  });
+
+  // Nature (33KV / Link Line) from properties
+  const nats=new Set();
   allLayers.forEach(item=>{
     if(!['points','fpoles'].includes(item.reg.type))return;
     const p=item.layer.feature?.properties||{};
-    const d=getDivisionFromRow(p);const s=getSubDivFromRow(p);const sc=getSectionFromRow(p);
-    if(d)divs.add(d);if(s)subs.add(s);if(sc)secs.add(sc);
+    const n=getNatureFromRow(p);
+    if(n)nats.add(n);
   });
-  const fill=(id,opts,label)=>{
+
+  const cur={
+    div:document.getElementById('hier-div')?.value||'ALL',
+    sub:document.getElementById('hier-sub')?.value||'ALL',
+    sec:document.getElementById('hier-sec')?.value||'ALL',
+    nat:document.getElementById('hier-nat')?.value||'ALL',
+    fn:document.getElementById('hier-fn')?.value||'ALL',
+  };
+
+  // Cascade: subs and secs depend on selected parent
+  const divs=new Set(Object.keys(tree));
+  let subs=new Set();
+  if(cur.div==='ALL'){
+    Object.values(tree).forEach(o=>Object.keys(o).forEach(s=>subs.add(s)));
+  }else{
+    Object.keys(tree[cur.div]||{}).forEach(s=>subs.add(s));
+  }
+  let secs=new Set();
+  if(cur.div==='ALL'&&cur.sub==='ALL'){
+    Object.values(tree).forEach(o=>Object.values(o).forEach(set=>set.forEach(x=>secs.add(x))));
+  }else if(cur.div==='ALL'){
+    Object.values(tree).forEach(o=>{if(o[cur.sub])o[cur.sub].forEach(x=>secs.add(x));});
+  }else if(cur.sub==='ALL'){
+    Object.values(tree[cur.div]||{}).forEach(set=>set.forEach(x=>secs.add(x)));
+  }else{
+    (tree[cur.div]?.[cur.sub]||new Set()).forEach(x=>secs.add(x));
+  }
+
+  const fill=(id,opts,label,curVal)=>{
     const el=document.getElementById(id);if(!el)return;
-    const cur=el.value;
     el.innerHTML=`<option value="ALL">ALL ${label}</option>`;
     [...opts].filter(Boolean).sort().forEach(v=>{
       const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);
     });
-    if(cur&&[...opts].includes(cur))el.value=cur;
+    if(curVal&&[...opts].includes(curVal))el.value=curVal;
+    else el.value='ALL';
   };
-  fill('hier-div',divs,'DIVISIONS');
-  fill('hier-sub',subs,'SUB DIVISIONS');
-  fill('hier-sec',secs,'SECTIONS');
-  // Feeder dropdown
+  fill('hier-div',divs,'DIVISIONS',cur.div);
+  fill('hier-sub',subs,'SUB DIVISIONS',cur.sub);
+  fill('hier-sec',secs,'SECTIONS',cur.sec);
+  fill('hier-nat',nats,'TYPES',cur.nat);
+
+  // Feeder dropdown: only feeders inside the current div/sub/sec scope
   const fnEl=document.getElementById('hier-fn');
   if(fnEl){
-    const curFn=fnEl.value;
     fnEl.innerHTML='<option value="ALL">ALL FEEDERS</option>';
-    [...feederNames].sort().forEach(fn=>{
+    const matches=[...feederNames].filter(fn=>{
+      const h=feederHierarchyMap[fn]||{};
+      const m=feederMetaMap[fn]||{};
+      const fDiv=(h.division||m.div||'').toString();
+      const fSub=(h.sub_division||m.sub||'').toString();
+      const fSec=(h.section||m.sec||'').toString();
+      if(cur.div!=='ALL'&&fDiv!==cur.div)return false;
+      if(cur.sub!=='ALL'&&fSub!==cur.sub)return false;
+      if(cur.sec!=='ALL'&&fSec!==cur.sec)return false;
+      return true;
+    }).sort();
+    matches.forEach(fn=>{
       const o=document.createElement('option');o.value=fn;o.textContent=fn.length>40?fn.substring(0,38)+'…':fn;fnEl.appendChild(o);
     });
-    if(curFn&&feederNames.has(curFn))fnEl.value=curFn;
+    if(cur.fn&&matches.includes(cur.fn))fnEl.value=cur.fn;
+    else fnEl.value='ALL';
   }
   updateHierFilters();
 }
@@ -2697,30 +2898,49 @@ function updateHierFilters(){
   const div=document.getElementById('hier-div')?.value||'ALL';
   const sub=document.getElementById('hier-sub')?.value||'ALL';
   const sec=document.getElementById('hier-sec')?.value||'ALL';
+  const nat=document.getElementById('hier-nat')?.value||'ALL';
   const fn=document.getElementById('hier-fn')?.value||'ALL';
-  _hierFiltered={div,sub,sec,fn};
+  _hierFiltered={div,sub,sec,nat,fn};
   const res=document.getElementById('hier-result');
   if(res){
     const filtered=getFilteredFeeders();
     res.textContent=`→ ${filtered.length} feeder(s) selected`;
   }
+  // Cascade: changing div/sub/sec rebuilds the dependent dropdowns
+  // Use a guard so we don't infinite-loop
+  if(!window.__hierRebuilding){
+    window.__hierRebuilding=true;
+    try{ buildHierFilters(); }finally{ window.__hierRebuilding=false; }
+  }
 }
 
 function getFilteredFeeders(){
   if(!_hierFiltered)return [...feederNames];
-  const {div,sub,sec,fn}=_hierFiltered;
-  if(fn!=='ALL')return feederNames.has(fn)?[fn]:[];
+  const {div,sub,sec,nat,fn}=_hierFiltered;
+  if(fn&&fn!=='ALL')return feederNames.has(fn)?[fn]:[];
   return [...feederNames].filter(feederName=>{
-    // Check if any point in this feeder matches filters
-    const items=allLayers.filter(i=>i.feederName===feederName&&['points','fpoles'].includes(i.reg.type));
-    if(!items.length)return true; // static feeder — include
-    return items.some(item=>{
-      const p=item.layer.feature?.properties||{};
-      const pDiv=p.Division||p.division||'';
-      const pSub=p['Sub Division']||p.sub_division||'';
-      const pSec=p.Section||p.section||'';
-      return (div==='ALL'||pDiv===div)&&(sub==='ALL'||pSub===sub)&&(sec==='ALL'||pSec===sec);
-    });
+    // Use feederHierarchyMap or feederMetaMap first if present
+    const h=feederHierarchyMap[feederName]||{};
+    const m=feederMetaMap[feederName]||{};
+    const fDiv=(h.division||m.div||'').toString();
+    const fSub=(h.sub_division||m.sub||'').toString();
+    const fSec=(h.section||m.sec||'').toString();
+    const divOk=(div==='ALL')||(fDiv===div);
+    const subOk=(sub==='ALL')||(fSub===sub);
+    const secOk=(sec==='ALL')||(fSec===sec);
+    if(!(divOk&&subOk&&secOk))return false;
+    if(nat&&nat!=='ALL'){
+      // check at least one point matches nature
+      const items=allLayers.filter(i=>i.feederName===feederName&&['points','fpoles'].includes(i.reg.type));
+      if(items.length){
+        return items.some(item=>{
+          const p=item.layer.feature?.properties||{};
+          const fNat=getNatureFromRow(p);
+          return fNat===nat;
+        });
+      }
+    }
+    return true;
   });
 }
 
@@ -2814,7 +3034,7 @@ function fuzzyGet(row,candidates){
 function getLatFromRow(row){return parseFloat(fuzzyGet(row,['latitude','Latitude','lat','LAT','Lat']));}
 function getLngFromRow(row){return parseFloat(fuzzyGet(row,['longitude','Longitude','lon','lng','LON','LNG','Long','LONG']));}
 function getFeederNameFromRow(row){return fuzzyGet(row,['feeder_name','Feeder Name','feeder name','FEEDER_NAME','FeederName','Feeder_Name','feeder','Feeder']);}
-function getTypeFromRow(row){return fuzzyGet(row,['type_of_feeder','Type of Feeder','Type_of_feeder','type_of_cable_point','Type of Cable Point','feeder_type','FeederType']);}
+function getTypeFromRow(row){return fuzzyGet(row,['type_of_feeder','Type of Feeder','Type_of_feeder','feeder_type','FeederType','Type of feeder']);}
 function getPoleNoFromRow(row,idx){return fuzzyGet(row,['pole_number','Pole Number','Pole_Number','pole_no','PoleNo','pole'])||String(idx+1);}
 function getDivisionFromRow(row){return fuzzyGet(row,['division','Division','DIVISION','div']);}
 function getSubDivFromRow(row){return fuzzyGet(row,['sub_division','Sub Division','sub_div','SubDivision','subdiv','Sub_Division','SUB_DIVISION']);}
@@ -2870,59 +3090,205 @@ function renderFSPBody(fn){
   body.innerHTML='<div style="color:#94a3b8;font-size:12px;text-align:center;padding:30px">Loading…</div>';
   const s=calcFeederStats(fn);
   const meta=feederMetaMap[fn]||{};
-  const rows=Object.values(uploadedFiles||{}).find(f=>f.feederName===fn)?.rows||[];
+
+  // ── ROW-FILTER FIX (per Naresh, 09 May 2026) ──
+  // Earlier we took every row of the uploaded file. If the file had multiple
+  // feeders bundled together, the pole-structure counts ballooned (e.g. 140
+  // Box Poles for a 23-pole feeder). Now we filter rows to only this feeder.
+  let rows=[];
+  Object.values(uploadedFiles||{}).forEach(f=>{
+    if(!f||!f.rows)return;
+    f.rows.forEach(r=>{
+      const rfn=getFeederNameFromRow(r);
+      if(rfn===fn||(rfn&&rfn.toUpperCase()===fn.toUpperCase()))rows.push(r);
+    });
+  });
+  // Fallback: if nothing matched, use whole file (rarely needed)
+  if(!rows.length){
+    rows=Object.values(uploadedFiles||{}).find(f=>f.feederName===fn)?.rows||[];
+  }
+
+  // Pole structure counts (only for THIS feeder's rows)
   const poleTypes={};
   rows.forEach(r=>{const pt=getPoleTypeFromRow(r);if(pt)poleTypes[pt]=(poleTypes[pt]||0)+1;});
-  const srcSS=rows.length?fuzzyGet(rows[0],['name_of_33_11_SS','name_of_the_33_11_SS','Name of 33/11 SS']):'—';
-  const cableKind=s.ohKm>0&&s.ugKm>0?'UG+OH (Mixed)':s.ohKm>0?'Full OH':'Full UG';
-  
+
+  // AB switches & DPs derived directly from rows (matches the corrected detection rules)
+  let abFromRows=0,dpFromRows=0;
+  rows.forEach(r=>{
+    const feedUP=String(getPoleFeederToFromRow(r)||'').toUpperCase();
+    const ptypeUP=String(getPoleTypeFromRow(r)||'').toUpperCase();
+    if(feedUP.includes('AB SWITCH')||feedUP.includes('LINE AB')||feedUP.includes('ABSWITCH'))abFromRows++;
+    if(ptypeUP.includes('DOUBLE POLE')||ptypeUP.includes('DOUBLEPOLE'))dpFromRows++;
+  });
+
+  const srcSS=rows.length?fuzzyGet(rows[0],['name_of_33_11_SS','name_of_the_33_11_SS','Name of 33/11 SS','name_of_33/11_SS']):'—';
+  const ehtSrc=rows.length?fuzzyGet(rows[0],['name_of_the_eht_ss','name_of_EHT_SS','EHT_SS','eht_ss','Name of EHT SS','EHT Source']):'—';
+  const cableKind=s.ohKm>0&&s.ugKm>0?'UG + OH (Mixed)':s.ohKm>0?'Full OH':'Full UG';
+  const ugPct=s.totalKm>0?Math.round(s.ugKm/s.totalKm*100):0;
+  const ohPct=s.totalKm>0?Math.round(s.ohKm/s.totalKm*100):0;
+
   fetch(FIREBASE_URL+'/feederOpsData/'+safeFbKey(fn)+'.json').then(r=>r.json()).catch(()=>({})).then(ops=>{
     ops=ops||{};
     const ptHtml=Object.keys(poleTypes).length
-      ?Object.entries(poleTypes).map(([t,n])=>`<div class="fsp-pole-row"><span>${t}</span><span style="font-weight:700;font-family:monospace">${n} Nos.</span></div>`).join('')
-      :'';
+      ?Object.entries(poleTypes).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`
+        <div class="fsp-pole-row">
+          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#3b82f6"></span>${t}</span>
+          <span style="font-weight:700;font-family:monospace;color:#0f172a">${n} Nos.</span>
+        </div>`).join('')
+      :'<div style="text-align:center;color:#94a3b8;padding:14px;font-size:11px;font-style:italic">No pole-type data in CSV</div>';
+
     body.innerHTML=`
-      <div class="fsp-section">
-        <div class="fsp-sec-title">CABLE METRICS</div>
-        <div class="fsp-grid">
-          <div class="fsp-stat"><div class="fsp-stat-lbl">POLES / POINTS</div><div class="fsp-stat-val">${s.poles}</div></div>
-          <div class="fsp-stat"><div class="fsp-stat-lbl">CABLE TYPE</div><div class="fsp-stat-val" style="font-size:12px">${cableKind}</div></div>
-          <div class="fsp-stat"><div class="fsp-stat-lbl">TOTAL LENGTH</div><div class="fsp-stat-val">${s.totalKm.toFixed(3)} km</div></div>
-          <div class="fsp-stat"><div class="fsp-stat-lbl">UG LENGTH</div><div class="fsp-stat-val ug">${s.ugKm.toFixed(3)} km</div></div>
-          <div class="fsp-stat"><div class="fsp-stat-lbl">OH LENGTH</div><div class="fsp-stat-val oh">${s.ohKm.toFixed(3)} km</div></div>
-          <div class="fsp-stat"><div class="fsp-stat-lbl">AB SWITCHES</div><div class="fsp-stat-val">${s.abCnt}</div></div>
-          <div class="fsp-stat"><div class="fsp-stat-lbl">DP STRUCTURES</div><div class="fsp-stat-val">${s.dpCnt}</div></div>
-          <div class="fsp-stat"><div class="fsp-stat-lbl">CUT POINTS</div><div class="fsp-stat-val">${s.cutCnt}</div></div>
+      <!-- ── HERO STATS ── -->
+      <div class="fsp-hero">
+        <div class="fsp-hero-title">${fn.split('→')[1]?.trim()||fn}</div>
+        <div class="fsp-hero-sub">${ehtSrc||extractEHT(fn)} <span style="opacity:.5;margin:0 4px">→</span> ${srcSS||'—'}</div>
+        <div class="fsp-hero-grid">
+          <div class="fsp-kpi"><div class="fsp-kpi-val">${s.poles}</div><div class="fsp-kpi-lbl">POLES</div></div>
+          <div class="fsp-kpi"><div class="fsp-kpi-val">${s.totalKm.toFixed(2)}</div><div class="fsp-kpi-lbl">KM TOTAL</div></div>
+          <div class="fsp-kpi"><div class="fsp-kpi-val" style="color:#2196f3">${s.ugKm.toFixed(2)}</div><div class="fsp-kpi-lbl">UG (KM)</div></div>
+          <div class="fsp-kpi"><div class="fsp-kpi-val" style="color:#ff9800">${s.ohKm.toFixed(2)}</div><div class="fsp-kpi-lbl">OH (KM)</div></div>
+        </div>
+        <!-- UG/OH bar -->
+        <div class="fsp-bar-wrap" title="UG ${ugPct}% • OH ${ohPct}%">
+          <div class="fsp-bar-ug" style="width:${ugPct}%"></div>
+          <div class="fsp-bar-oh" style="width:${ohPct}%"></div>
+        </div>
+        <div class="fsp-bar-lbl">
+          <span><span class="fsp-bar-d" style="background:#2196f3"></span>UG ${ugPct}%</span>
+          <span><span class="fsp-bar-d" style="background:#ff9800"></span>OH ${ohPct}%</span>
+          <span style="margin-left:auto;color:#64748b">${cableKind}</span>
         </div>
       </div>
+
+      <!-- ── INFRASTRUCTURE ── -->
       <div class="fsp-section">
-        <div class="fsp-sec-title">SOURCE</div>
+        <div class="fsp-sec-title">INFRASTRUCTURE</div>
+        <div class="fsp-grid">
+          <div class="fsp-stat fsp-stat-ab"><div class="fsp-stat-lbl">AB SWITCHES</div><div class="fsp-stat-val" style="color:#ff9800">${abFromRows||s.abCnt}</div></div>
+          <div class="fsp-stat fsp-stat-dp"><div class="fsp-stat-lbl">DP STRUCTURES</div><div class="fsp-stat-val" style="color:#9c27b0">${dpFromRows||s.dpCnt}</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">CUT POINTS</div><div class="fsp-stat-val">${s.cutCnt}</div></div>
+          <div class="fsp-stat"><div class="fsp-stat-lbl">TRANS LINES</div><div class="fsp-stat-val">${s.trKm>0?s.trKm.toFixed(2)+' km':'—'}</div></div>
+        </div>
+      </div>
+
+      <!-- ── SOURCE / HIERARCHY ── -->
+      <div class="fsp-section">
+        <div class="fsp-sec-title">SOURCE &amp; LOCATION</div>
         <div class="fsp-field"><span class="fsp-field-lbl">Regular Source 33/11KV SS</span><span class="fsp-field-val">${srcSS||'—'}</span></div>
-        <div class="fsp-field"><span class="fsp-field-lbl">Alternate Source 33/11KV SS</span><span class="fsp-field-val">${ops.altSrc||'—'}</span></div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Alternate Source 33/11KV SS</span><input class="fsp-input fsp-input-wide" id="fsp-altsrc" value="${ops.altSrc||''}" placeholder="—"/></div>
         <div class="fsp-field"><span class="fsp-field-lbl">Division</span><span class="fsp-field-val">${meta.div||'—'}</span></div>
+        <div class="fsp-field"><span class="fsp-field-lbl">Sub Division</span><span class="fsp-field-val">${meta.sub||'—'}</span></div>
         <div class="fsp-field"><span class="fsp-field-lbl">Section</span><span class="fsp-field-val">${meta.sec||'—'}</span></div>
       </div>
-      ${ptHtml?`<div class="fsp-section"><div class="fsp-sec-title">POLE STRUCTURE TYPES</div>${ptHtml}</div>`:''}
+
+      <!-- ── POLE STRUCTURE TYPES ── -->
+      <div class="fsp-section">
+        <div class="fsp-sec-title">POLE STRUCTURE TYPES <span style="color:#94a3b8;font-weight:400;letter-spacing:1px;font-size:8px">(THIS FEEDER ONLY)</span></div>
+        <div class="fsp-pole-list">${ptHtml}</div>
+      </div>
+
+      <!-- ── LOAD DATA ── -->
       <div class="fsp-section">
         <div class="fsp-sec-title">LOAD DATA</div>
         <div class="fsp-field"><span class="fsp-field-lbl">Max Recorded Load (Amps)</span><input class="fsp-input" id="fsp-ma" value="${ops.maxAmps||''}" placeholder="—"/></div>
         <div class="fsp-field"><span class="fsp-field-lbl">Max Load Date</span><input class="fsp-input" id="fsp-md" value="${ops.maxDate||''}" placeholder="DD/MM/YYYY"/></div>
         <div class="fsp-field"><span class="fsp-field-lbl">Avg Load 3 Months (Amps)</span><input class="fsp-input" id="fsp-aa" value="${ops.avgAmps||''}" placeholder="—"/></div>
       </div>
+
+      <!-- ── OPERATIONAL HISTORY ── -->
       <div class="fsp-section">
-        <div class="fsp-sec-title">OPERATIONAL HISTORY (Last 1 Year)</div>
+        <div class="fsp-sec-title">OPERATIONAL HISTORY <span style="color:#94a3b8;font-weight:400;letter-spacing:1px;font-size:8px">(LAST 1 YEAR)</span></div>
         <div class="fsp-field"><span class="fsp-field-lbl">Trippings / Interruptions</span><input class="fsp-input" id="fsp-tr" value="${ops.trips||''}" placeholder="—"/></div>
         <div class="fsp-field"><span class="fsp-field-lbl">Breakdowns</span><input class="fsp-input" id="fsp-br" value="${ops.breakdowns||''}" placeholder="—"/></div>
       </div>
+
       <button class="fsp-save-btn" onclick="saveFSPData()">💾 Save to Cloud</button>`;
   });
 }
 
 function saveFSPData(){
   if(!_fspFeeder)return;
-  const ops={maxAmps:document.getElementById('fsp-ma')?.value||'',maxDate:document.getElementById('fsp-md')?.value||'',avgAmps:document.getElementById('fsp-aa')?.value||'',trips:document.getElementById('fsp-tr')?.value||'',breakdowns:document.getElementById('fsp-br')?.value||'',updatedAt:new Date().toISOString()};
+  const ops={
+    altSrc:document.getElementById('fsp-altsrc')?.value||'',
+    maxAmps:document.getElementById('fsp-ma')?.value||'',
+    maxDate:document.getElementById('fsp-md')?.value||'',
+    avgAmps:document.getElementById('fsp-aa')?.value||'',
+    trips:document.getElementById('fsp-tr')?.value||'',
+    breakdowns:document.getElementById('fsp-br')?.value||'',
+    updatedAt:new Date().toISOString()
+  };
   fetch(FIREBASE_URL+'/feederOpsData/'+safeFbKey(_fspFeeder)+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(ops)})
-    .then(r=>r.ok?toast('✅ Saved',2000):toast('Save failed',2000)).catch(()=>toast('Save failed',2000));
+    .then(r=>r.ok?toast('✅ Saved to Cloud',2000):toast('Save failed',2000)).catch(()=>toast('Save failed',2000));
+}
+
+// ── Download all rows belonging to the currently-open feeder (CSV) ──
+function _collectRowsForFeeder(fn){
+  const out=[];
+  Object.values(uploadedFiles||{}).forEach(f=>{
+    if(!f||!f.rows)return;
+    f.rows.forEach(r=>{
+      const rfn=getFeederNameFromRow(r);
+      if(rfn===fn||(rfn&&rfn.toUpperCase()===fn.toUpperCase()))out.push(r);
+    });
+  });
+  if(!out.length){
+    const fall=Object.values(uploadedFiles||{}).find(f=>f.feederName===fn);
+    if(fall&&fall.rows)return [...fall.rows];
+  }
+  return out;
+}
+
+function downloadCurrentFeederCSV(){
+  if(!_fspFeeder){toast('No feeder selected',2000);return;}
+  const rows=_collectRowsForFeeder(_fspFeeder);
+  if(!rows.length){toast('No row data for this feeder',2200);return;}
+  // Use a stable column order from first row
+  const cols=Object.keys(rows[0]);
+  const csvCell=v=>{v=String(v??'');return /[,"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const lines=[cols.join(','),...rows.map(r=>cols.map(c=>csvCell(r[c])).join(','))];
+  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(_fspFeeder.replace(/[^a-z0-9]/gi,'_').substring(0,60))+'_data.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  toast('📥 CSV downloaded — '+rows.length+' rows',2500);
+}
+
+function downloadCurrentFeederXLSX(){
+  if(!_fspFeeder){toast('No feeder selected',2000);return;}
+  if(typeof XLSX==='undefined'){toast('SheetJS not loaded',2000);return;}
+  const rows=_collectRowsForFeeder(_fspFeeder);
+  if(!rows.length){toast('No row data for this feeder',2200);return;}
+  const s=calcFeederStats(_fspFeeder);
+  const meta=feederMetaMap[_fspFeeder]||{};
+
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1 — Pole-level data
+  const ws1=XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws1,'Pole Data');
+
+  // Sheet 2 — Feeder summary
+  const summary=[
+    {Field:'Feeder Name',Value:_fspFeeder},
+    {Field:'Division',Value:meta.div||''},
+    {Field:'Sub Division',Value:meta.sub||''},
+    {Field:'Section',Value:meta.sec||''},
+    {Field:'Status',Value:(feederStatus[_fspFeeder]||'live').toUpperCase()},
+    {Field:'Poles / Points',Value:s.poles},
+    {Field:'Total Length (km)',Value:+s.totalKm.toFixed(3)},
+    {Field:'UG Length (km)',Value:+s.ugKm.toFixed(3)},
+    {Field:'OH Length (km)',Value:+s.ohKm.toFixed(3)},
+    {Field:'AB Switches',Value:s.abCnt},
+    {Field:'DP Structures',Value:s.dpCnt},
+    {Field:'Cut Points',Value:s.cutCnt},
+  ];
+  const ws2=XLSX.utils.json_to_sheet(summary);
+  ws2['!cols']=[{wch:28},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Summary');
+
+  XLSX.writeFile(wb,(_fspFeeder.replace(/[^a-z0-9]/gi,'_').substring(0,60))+'_data.xlsx');
+  toast('📥 Excel downloaded — '+rows.length+' rows',2500);
 }
 
 // ══════════════════════════════════════════════════
@@ -3085,10 +3451,14 @@ function parsePoleNo(raw){
 function _drawSegment(feederName, coords, typeRaw, regLine){
   if(coords.length<2)return;
   const t=String(typeRaw||'').toUpperCase().replace(/[\s_]/g,'');
-  const isTrans=t.includes('UGTOH')||t.includes('OHTUG')||t==='TRANSITION'||t==='TRANS';
-  const isOH=!isTrans&&(t==='OH'||t==='OVERHEAD');
-  const color=isTrans?'#9c27b0':isOH?'#ff9800':'#2196f3';
-  const cable=isTrans?'-':isOH?'OH':'UG';
+  // New transition rules (per Naresh):
+  //   UG TO OH → ORANGE (destination side)
+  //   OH TO UG → BLUE   (destination side)
+  const isUG2OH=t.includes('UGTOH');
+  const isOH2UG=t.includes('OHTUG');
+  const isOH=isUG2OH||(!isOH2UG&&(t==='OH'||t==='OVERHEAD'));
+  const color=isOH?'#ff9800':'#2196f3';
+  const cable=isOH?'OH':'UG';
 
   const cStatus=feederStatus[feederName]||'live';
 
@@ -3208,57 +3578,91 @@ function renderUploadedRows(rows,sourceFileName){
       spurGroups[p.pn.base].push(p);
     });
     Object.values(spurGroups).forEach(g=>g.sort((a,b)=>{
-      const na=parseInt(a.pn.spur.replace(/[^0-9]/g,''))||0;
-      const nb=parseInt(b.pn.spur.replace(/[^0-9]/g,''))||0;
-      return na-nb;
+      const ka=String(a.pn.spurKey||a.pn.branchLetter||'').replace(/[^0-9]/g,'');
+      const kb=String(b.pn.spurKey||b.pn.branchLetter||'').replace(/[^0-9]/g,'');
+      const na=parseInt(ka)||a.pn.branchSeq||0;
+      const nb=parseInt(kb)||b.pn.branchSeq||0;
+      if(na!==nb)return na-nb;
+      return (a.pn.branchSeq||0)-(b.pn.branchSeq||0);
     }));
 
     // ── Draw MAIN LINE as type-segmented polylines ──
     _drawPoleSequence(feederName, mainPoles, regLine);
 
     // ── Draw SPUR BRANCHES ──
+    // SPUR FIX (09 May 2026): grp is an array of poles (NOT an object with .base/.poles).
+    // The base number lives in the key gk; the parent pole on the main line is at
+    // mainPoles where pn.base === parseInt(gk).
     Object.entries(spurGroups).forEach(([gk,grp])=>{
-      const parent=mainPoles.find(p=>p.pn.base===grp.base);
-      const branchPoles=parent?[parent,...grp.poles]:grp.poles;
+      const baseNum=parseInt(gk);
+      const parent=mainPoles.find(p=>p.pn.base===baseNum);
+      const branchPoles=parent?[parent,...grp]:grp;
       if(branchPoles.length>=2)_drawPoleSequence(feederName,branchPoles,regLine);
     });
 
     // ── Draw point markers ──
     parsed.forEach(p=>{
       const poleNo=p.rawPoleNo;
-      const abSwitch=_getRowVal(p.row,'type_of_cable_point','Type of Cable Point');
+      const cableP=_getRowVal(p.row,'type_of_cable_point','Type of Cable Point');
       const cutPt=_getRowVal(p.row,'cut_point','Cut Point');
-      const isAB=abSwitch.toUpperCase().includes('AB')||abSwitch.toUpperCase().includes('SWITCH');
-      const isDP=abSwitch.toUpperCase().includes('DP')||abSwitch.toUpperCase().includes('DOUBLE');
-      const isCut=cutPt.toUpperCase().includes('CUT')||cutPt.toUpperCase().includes('VERTICAL');
-      const cable=p.isTrans?'-':p.isOH?'OH':'UG';
+      const poleType=_getRowVal(p.row,'type_of_pole','Type of Pole','type_of_le');
+      const feedingTo=_getRowVal(p.row,'pole_feeding_to','Pole Feeding to','Pole Feeding To');
+
+      // ── COLUMN-MAPPING FIX (per Naresh, 09 May 2026) ──
+      // AB Switch  →  detect from `pole_feeding_to` column
+      //                e.g. "33/11 KV Sub-Station , Line AB Switch"
+      // DP         →  detect from `type_of_pole` column
+      //                e.g. "Double Pole Structure"
+      const feedUP=feedingTo.toUpperCase();
+      const ptypeUP=poleType.toUpperCase();
+      const isAB=feedUP.includes('AB SWITCH')||feedUP.includes('ABSWITCH')||feedUP.includes('LINE AB');
+      const isDP=ptypeUP.includes('DOUBLE POLE')||ptypeUP.includes('DOUBLEPOLE')||ptypeUP==='DP';
+      const isCut=cutPt.toUpperCase().includes('CUT')||cutPt.toUpperCase().includes('VERTICAL')||cutPt.toUpperCase().includes('HORIZONTAL');
+      const cable=p.isOH?'OH':'UG';
       const ptColor=cableColor(p.typeRaw,p.isOH);
 
       const props={
         'Feeder Name':feederName,'Pole Number':poleNo,
         'Cut Point':cutPt,
-        'Type of Pole':_getRowVal(p.row,'type_of_pole','Type of Pole','type_of_le'),
-        'Pole Feeding to':_getRowVal(p.row,'pole_feeding_to','Pole Feeding to','Pole Feeding To'),
-        'Type of Cable Point':abSwitch,
+        'Type of Pole':poleType,
+        'Pole Feeding to':feedingTo,
+        'Type of Cable Point':cableP,
         'Type of Feeder':p.typeRaw,
         'Nature of Feeder':_getRowVal(p.row,'nature_of_feeder','Nature of Feeder'),
         'Section':_getRowVal(p.row,'section','Section'),
         'Sub Division':_getRowVal(p.row,'sub_division','Sub Division'),
         'Division':_getRowVal(p.row,'division','Division'),
         'Latitude':p.lat,'Longitude':p.lng,
-        ...(p.pn.spur?{'Spur Line':p.rawPoleNo}:{}),
+        ...(p.pn.spurKey?{'Spur Line':p.rawPoleNo}:{}),
       };
       const feat={type:'Feature',geometry:{type:'Point',coordinates:[p.lng,p.lat]},properties:props};
       let layer,regType='points';
-      if(isAB||isDP){
-        regType=isAB?'ab':'dp';
+      if(isAB){
+        regType='ab';
+        // Distinctive AB Switch icon — orange diamond with central bar
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',
-          html:`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13'><rect width='13' height='13' rx='2' fill='#ffff00' stroke='#000000' stroke-width='2'/></svg>`,
-          iconSize:[13,13],iconAnchor:[6,6]}),pane:'pointsPane'});
+          html:`<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'>
+            <rect x='2' y='2' width='14' height='14' rx='2' transform='rotate(45 9 9)' fill='#ff9800' stroke='#fff' stroke-width='1.4' style='filter:drop-shadow(0 0 3px #ff9800)'/>
+            <line x1='4.5' y1='9' x2='13.5' y2='9' stroke='#fff' stroke-width='2.2' stroke-linecap='round'/>
+          </svg>`,
+          iconSize:[18,18],iconAnchor:[9,9]}),pane:'pointsPane'});
+      }else if(isDP){
+        regType='dp';
+        // DP Structure — purple double-pole symbol
+        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',
+          html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='16' viewBox='0 0 14 16'>
+            <line x1='3' y1='1' x2='3' y2='15' stroke='#9c27b0' stroke-width='2.4' stroke-linecap='round'/>
+            <line x1='11' y1='1' x2='11' y2='15' stroke='#9c27b0' stroke-width='2.4' stroke-linecap='round'/>
+            <line x1='3' y1='6' x2='11' y2='6' stroke='#9c27b0' stroke-width='1.8'/>
+            <circle cx='3' cy='3' r='1.6' fill='#9c27b0' stroke='#fff' stroke-width='.6'/>
+            <circle cx='11' cy='3' r='1.6' fill='#9c27b0' stroke='#fff' stroke-width='.6'/>
+          </svg>`,
+          iconSize:[14,16],iconAnchor:[7,8]}),pane:'pointsPane'});
       }else if(isCut){
         regType='cut';
-        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><line x1='2' y1='2' x2='12' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='2' x2='2' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
-      }else if(p.pn.spur){
+        // Cut Point — small yellow "X"
+        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><line x1='1.5' y1='1.5' x2='8.5' y2='8.5' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/><line x1='8.5' y1='1.5' x2='1.5' y2='8.5' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/></svg>`,iconSize:[10,10],iconAnchor:[5,5]}),pane:'pointsPane'});
+      }else if(p.pn.spurKey){
         layer=L.circleMarker([p.lat,p.lng],{radius:3,fillColor:'#ffe082',fillOpacity:1,color:'#ff9800',weight:1.5,pane:'pointsPane',renderer:_CR});
       }else{
         layer=L.circleMarker([p.lat,p.lng],{radius:3.5,fillColor:'#fff',fillOpacity:1,color:ptColor,weight:1.5,pane:'pointsPane',renderer:_CR});
@@ -3293,6 +3697,7 @@ function renderUploadedRows(rows,sourceFileName){
   });
 
   updateVisibility();buildFeederChecks();updateCounts();buildDropdownOptions();
+  if(typeof buildHierFilters==='function')buildHierFilters();
   allRenderedFeeders.forEach(f=>attachSegmentDistanceClick(f.feederName));
 
   const totalPts=allRenderedFeeders.reduce((s,f)=>s+f.points,0);
@@ -3550,7 +3955,12 @@ setTimeout(()=>{
 
 <div id="feederStatsPanel">
   <div class="fsp-head">
-    <div><div class="fsp-title">// FEEDER STATISTICS</div><div class="fsp-fn" id="fspFeederName">—</div></div>
+    <div style="flex:1;min-width:0">
+      <div class="fsp-title">// FEEDER STATISTICS</div>
+      <div class="fsp-fn" id="fspFeederName">—</div>
+    </div>
+    <button class="fsp-dl-btn" onclick="downloadCurrentFeederCSV()" title="Download CSV of this feeder's data">⬇ CSV</button>
+    <button class="fsp-dl-btn fsp-dl-xlsx" onclick="downloadCurrentFeederXLSX()" title="Download Excel of this feeder's data">⬇ XLSX</button>
     <button class="fsp-close" onclick="document.getElementById('feederStatsPanel').classList.remove('open');_fspFeeder=null;">✕</button>
   </div>
   <div class="fsp-body" id="fspBody">
