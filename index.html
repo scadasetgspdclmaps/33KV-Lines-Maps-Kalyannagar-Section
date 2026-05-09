@@ -199,8 +199,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--navy)}
   will-change:stroke-dashoffset}
 path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!important;
   animation:energy-flow-overlay .8s linear infinite!important;pointer-events:none!important}
-@keyframes sos-blink{0%,100%{opacity:1;filter:drop-shadow(0 0 12px #ff1744)}50%{opacity:.2;filter:none}}
-.feeder-breakdown{animation:sos-blink .8s ease-in-out infinite!important}
+@keyframes sos-blink{
+  0%,100%{opacity:1;filter:drop-shadow(0 0 14px #ff1744) drop-shadow(0 0 6px #ff1744)}
+  50%{opacity:.15;filter:drop-shadow(0 0 4px #ff1744)}
+}
+.feeder-breakdown{animation:sos-blink .65s ease-in-out infinite!important;will-change:opacity,filter}
 .hidden-flow{opacity:0!important;pointer-events:none!important}
 
 /* FEEDER STATUS */
@@ -417,9 +420,9 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 
 /* ══ V6 NEON SCADA LINE GLOW ══ */
-.fv6-ug{filter:drop-shadow(0 0 3px #2196f3) drop-shadow(0 0 8px rgba(33,150,243,.5))!important}
-.fv6-oh{filter:drop-shadow(0 0 3px #ff9800) drop-shadow(0 0 8px rgba(255,152,0,.5))!important}
-.fv6-tr{filter:drop-shadow(0 0 3px #9c27b0) drop-shadow(0 0 8px rgba(156,39,176,.5))!important}
+.fv6-ug{filter:drop-shadow(0 0 3px #2196f3) drop-shadow(0 0 8px rgba(33,150,243,.5))!important;will-change:filter}
+.fv6-oh{filter:drop-shadow(0 0 3px #ff9800) drop-shadow(0 0 8px rgba(255,152,0,.5))!important;will-change:filter}
+.fv6-tr{filter:drop-shadow(0 0 3px #9c27b0) drop-shadow(0 0 8px rgba(156,39,176,.5))!important;will-change:filter}
 @keyframes energy-flow-v6{to{stroke-dashoffset:-28}}
 .feeder-flow-overlay{stroke-dasharray:6 16!important;stroke-linecap:round!important;
   animation:energy-flow-v6 1.4s linear infinite!important;pointer-events:none!important;
@@ -675,17 +678,101 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 /* ══════════════════════════════════════════════════════════════
    FEEDER STATS PANEL — REDESIGNED HERO UI (09 May 2026)
+   Updated: bold black labels, stronger contrast (per Naresh feedback)
    ══════════════════════════════════════════════════════════════ */
 #feederStatsPanel{width:430px!important}
 .fsp-head{padding:12px 14px 10px!important;gap:6px!important;background:linear-gradient(180deg,#fff 0%,#f8fafc 100%)!important}
-.fsp-title{font-size:11px!important;font-family:var(--mono)!important;color:#3b82f6!important;letter-spacing:2px!important;margin-bottom:2px!important}
-.fsp-fn{font-size:11px!important;color:#0f172a!important;font-weight:600!important;font-family:var(--sans)!important;line-height:1.3;word-break:break-word;white-space:normal!important}
+.fsp-title{font-size:11px!important;font-family:var(--mono)!important;color:#1d4ed8!important;letter-spacing:2px!important;margin-bottom:2px!important;font-weight:700!important}
+.fsp-fn{font-size:11px!important;color:#0f172a!important;font-weight:700!important;font-family:var(--sans)!important;line-height:1.3;word-break:break-word;white-space:normal!important}
 .fsp-dl-btn{padding:5px 9px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;
   font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;
   border-radius:6px;cursor:pointer;transition:all .18s;white-space:nowrap;flex-shrink:0}
 .fsp-dl-btn:hover{background:#dbeafe;border-color:#3b82f6;transform:translateY(-1px);box-shadow:0 2px 8px rgba(59,130,246,.25)}
 .fsp-dl-xlsx{border-color:#86efac;background:#f0fdf4;color:#15803d}
 .fsp-dl-xlsx:hover{background:#dcfce7;border-color:#22c55e;box-shadow:0 2px 8px rgba(34,197,94,.25)}
+
+/* SECTION HEADERS — bold black for readability */
+.fsp-sec-title{
+  font-size:11px!important;
+  font-weight:800!important;
+  color:#000!important;
+  letter-spacing:1.5px!important;
+  margin-bottom:10px!important;
+  padding-bottom:6px!important;
+  border-bottom:2px solid #1d4ed8!important;
+  text-transform:uppercase;
+}
+
+/* STAT CARDS */
+.fsp-stat{
+  background:#fff!important;
+  border:1.5px solid #e2e8f0!important;
+  border-radius:10px!important;
+  padding:11px 13px!important;
+  transition:.2s;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+.fsp-stat:hover{border-color:#93c5fd;box-shadow:0 2px 8px rgba(37,99,235,.1)}
+.fsp-stat-lbl{
+  font-size:10px!important;
+  color:#000!important;
+  font-family:var(--sans)!important;
+  font-weight:700!important;
+  letter-spacing:.8px!important;
+  margin-bottom:5px!important;
+  text-transform:uppercase;
+}
+.fsp-stat-val{
+  font-size:18px!important;
+  font-weight:800!important;
+  color:#000!important;
+  font-family:var(--mono)!important;
+  line-height:1;
+}
+.fsp-stat-val.ug{color:#1565c0!important}
+.fsp-stat-val.oh{color:#e65100!important}
+
+/* FIELD ROWS (Source / Division / Section) */
+.fsp-field{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  padding:9px 12px!important;
+  border:1px solid #e2e8f0!important;
+  border-radius:8px!important;
+  margin-bottom:6px!important;
+  background:#f8fafc!important;
+}
+.fsp-field-lbl{
+  font-size:11px!important;
+  color:#000!important;
+  font-weight:600!important;
+  flex:1!important;
+  font-family:var(--sans)!important;
+}
+.fsp-field-val{
+  font-size:11px!important;
+  color:#000!important;
+  font-weight:700!important;
+  font-family:var(--mono)!important;
+  text-align:right;
+  letter-spacing:.3px;
+}
+.fsp-input{
+  border:1.5px solid #cbd5e1!important;
+  border-radius:6px!important;
+  padding:5px 9px!important;
+  font-size:11px!important;
+  color:#000!important;
+  font-weight:700!important;
+  font-family:var(--mono)!important;
+  width:120px!important;
+  text-align:right!important;
+  outline:none;
+  background:#fff;
+  transition:.15s;
+}
+.fsp-input:focus{border-color:#2563eb!important;box-shadow:0 0 0 3px rgba(37,99,235,.12)!important}
 
 /* Hero block */
 .fsp-hero{margin:-14px -16px 16px;padding:18px 18px 14px;
@@ -695,53 +782,143 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
   background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.18),transparent 50%),
              radial-gradient(circle at 20% 80%,rgba(0,200,255,.15),transparent 50%);
   pointer-events:none}
-.fsp-hero-title{font-family:var(--sans);font-size:16px;font-weight:700;color:#fff;
+.fsp-hero-title{font-family:var(--sans);font-size:17px;font-weight:800;color:#fff;
   letter-spacing:.3px;margin-bottom:3px;line-height:1.2;position:relative;z-index:1;
-  text-shadow:0 1px 2px rgba(0,0,0,.2)}
-.fsp-hero-sub{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.78);
-  letter-spacing:.5px;margin-bottom:14px;position:relative;z-index:1}
+  text-shadow:0 1px 3px rgba(0,0,0,.35)}
+.fsp-hero-sub{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.85);
+  letter-spacing:.5px;margin-bottom:14px;position:relative;z-index:1;font-weight:600}
 .fsp-hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;position:relative;z-index:1}
-.fsp-kpi{background:rgba(255,255,255,.13);backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,.18);border-radius:9px;
+.fsp-kpi{background:rgba(255,255,255,.16);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.22);border-radius:9px;
   padding:9px 6px 8px;text-align:center;transition:.18s}
-.fsp-kpi:hover{background:rgba(255,255,255,.2);transform:translateY(-1px)}
-.fsp-kpi-val{font-family:var(--mono);font-size:18px;font-weight:700;color:#fff;line-height:1;margin-bottom:3px;
-  text-shadow:0 1px 2px rgba(0,0,0,.25)}
-.fsp-kpi-lbl{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.75);
-  letter-spacing:1.2px;font-weight:600}
+.fsp-kpi:hover{background:rgba(255,255,255,.24);transform:translateY(-1px)}
+.fsp-kpi-val{font-family:var(--mono);font-size:18px;font-weight:800;color:#fff;line-height:1;margin-bottom:3px;
+  text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.fsp-kpi-lbl{font-family:var(--mono);font-size:8px;color:rgba(255,255,255,.85);
+  letter-spacing:1.2px;font-weight:700}
 .fsp-bar-wrap{display:flex;height:7px;border-radius:4px;overflow:hidden;
   background:rgba(255,255,255,.15);margin-top:14px;position:relative;z-index:1}
 .fsp-bar-ug{background:linear-gradient(90deg,#60a5fa,#2196f3);transition:width .4s}
 .fsp-bar-oh{background:linear-gradient(90deg,#fbbf24,#ff9800);transition:width .4s}
 .fsp-bar-lbl{display:flex;gap:14px;font-family:var(--mono);font-size:9px;
-  color:rgba(255,255,255,.85);margin-top:6px;letter-spacing:.5px;position:relative;z-index:1;align-items:center}
+  color:#fff;margin-top:6px;letter-spacing:.5px;position:relative;z-index:1;align-items:center;font-weight:700}
 .fsp-bar-d{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
 
 /* Stats with category accents */
-.fsp-stat-ab{border-left:3px solid #ff9800!important}
-.fsp-stat-dp{border-left:3px solid #9c27b0!important}
+.fsp-stat-ab{border-left:4px solid #ff9800!important}
+.fsp-stat-dp{border-left:4px solid #9c27b0!important}
 
 /* Pole list */
-.fsp-pole-list{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
-  padding:4px 0;max-height:240px;overflow-y:auto}
-.fsp-pole-list::-webkit-scrollbar{width:4px}
+.fsp-pole-list{background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;
+  padding:0;max-height:280px;overflow-y:auto}
+.fsp-pole-list::-webkit-scrollbar{width:5px}
 .fsp-pole-list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
 .fsp-pole-row{display:flex;justify-content:space-between;align-items:center;
-  padding:7px 12px!important;border-bottom:1px solid #f1f5f9;font-size:11px;color:#1e293b!important;
-  transition:background .15s}
+  padding:9px 13px!important;border-bottom:1px solid #f1f5f9;font-size:12px;color:#000!important;
+  transition:background .15s;font-weight:600!important}
 .fsp-pole-row:last-child{border:none}
 .fsp-pole-row:hover{background:#eff6ff}
+.fsp-pole-row span:last-child{color:#000!important;font-weight:800!important}
 
 /* Wide input for alt source */
-.fsp-input-wide{width:170px!important;text-align:left!important;font-family:var(--sans)!important;font-size:10px!important}
+.fsp-input-wide{width:170px!important;text-align:left!important;font-family:var(--sans)!important;font-size:11px!important;font-weight:600!important}
+
+.fsp-save-btn{
+  width:100%;padding:11px;margin-top:12px;border:none;border-radius:9px;
+  background:linear-gradient(135deg,#1d4ed8,#2563eb);
+  color:#fff;font-weight:800;font-size:13px;letter-spacing:.5px;
+  cursor:pointer;transition:.2s;
+  box-shadow:0 2px 8px rgba(37,99,235,.3);
+}
+.fsp-save-btn:hover{
+  background:linear-gradient(135deg,#1e3a8a,#1d4ed8);
+  transform:translateY(-1px);
+  box-shadow:0 4px 14px rgba(37,99,235,.4);
+}
 
 /* ── PANEL — make feeder list fill all available space ── */
-#panel{display:flex!important;flex-direction:column!important}
-#panel > .psec:first-of-type{flex:1!important;display:flex!important;flex-direction:column!important;min-height:0!important}
-#panel > .psec:first-of-type > #feederChecks{flex:1!important;overflow-y:auto!important;min-height:0!important}
-#feederChecks::-webkit-scrollbar{width:6px}
-#feederChecks::-webkit-scrollbar-thumb{background:#bfdbfe;border-radius:3px}
-#feederChecks::-webkit-scrollbar-track{background:#f1f5f9}
+#panel{display:flex!important;flex-direction:column!important;overflow:hidden!important}
+
+/* TAB STRIP at the top of the left panel */
+.lpanel-tabs{
+  display:flex;flex-shrink:0;background:#f1f5f9;border-bottom:1px solid #e2e8f0;
+}
+.lpanel-tab{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:11px 8px;border:none;background:transparent;cursor:pointer;
+  font-family:var(--sans);font-size:11px;font-weight:700;color:#64748b;
+  letter-spacing:1px;border-bottom:3px solid transparent;
+  transition:all .18s;position:relative;
+}
+.lpanel-tab:hover{background:#e2e8f0;color:#1e3a5f}
+.lpanel-tab.active{background:#fff;color:#1d4ed8;border-bottom-color:#1d4ed8;
+  box-shadow:0 -2px 0 #1d4ed8 inset, 0 0 0 transparent}
+.ltab-ic{font-size:13px;color:#3b82f6}
+.lpanel-tab.active .ltab-ic{color:#1d4ed8}
+.ltab-cnt{font-family:var(--mono);font-size:9px;background:#cbd5e1;color:#475569;
+  padding:2px 7px;border-radius:10px;font-weight:700;letter-spacing:.5px}
+.lpanel-tab.active .ltab-cnt{background:#dbeafe;color:#1d4ed8}
+
+/* TAB PANES — flex children that fill remaining space */
+.lpanel-pane{
+  flex:1!important;
+  display:none;
+  flex-direction:column;
+  min-height:0;
+  overflow:hidden;
+}
+.lpanel-pane.active{display:flex!important}
+.lpanel-pane > #feederChecks,
+.lpanel-pane > #ssList{
+  flex:1!important;
+  overflow-y:auto!important;
+  min-height:0!important;
+}
+#feederChecks::-webkit-scrollbar,#ssList::-webkit-scrollbar{width:6px}
+#feederChecks::-webkit-scrollbar-thumb,#ssList::-webkit-scrollbar-thumb{background:#bfdbfe;border-radius:3px}
+#feederChecks::-webkit-scrollbar-track,#ssList::-webkit-scrollbar-track{background:#f1f5f9}
+
+/* SUBSTATION TYPE BAR */
+.ss-typebar{display:flex;gap:4px;padding:0 12px 8px;flex-shrink:0;border-bottom:1px solid #f1f5f9;margin-bottom:4px}
+.ss-typebtn{
+  flex:1;padding:5px 8px;border:1.5px solid #e2e8f0;background:#fff;
+  font-family:var(--mono);font-size:9px;letter-spacing:.8px;font-weight:700;
+  color:#64748b;border-radius:6px;cursor:pointer;transition:.15s;
+}
+.ss-typebtn:hover{border-color:#93c5fd;color:#1d4ed8}
+.ss-typebtn.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8;
+  box-shadow:0 2px 6px rgba(29,78,216,.25)}
+
+/* SUBSTATION LIST */
+.ss-list{padding:4px 6px 12px}
+.ss-row{
+  display:flex;align-items:center;gap:9px;padding:9px 11px;margin:3px 4px;
+  background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;
+  cursor:pointer;transition:all .18s;
+}
+.ss-row:hover{background:#eff6ff;border-color:#93c5fd;transform:translateX(2px);
+  box-shadow:0 2px 8px rgba(37,99,235,.1)}
+.ss-row.ss-eht{background:linear-gradient(90deg,#fff7ed 0%,#ffedd5 100%);border-color:#fdba74}
+.ss-row.ss-eht:hover{background:#fed7aa;border-color:#f97316}
+.ss-row-ic{
+  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle,#1e88e5 0%,#0d47a1 100%);
+  color:#fff;font-size:11px;font-weight:700;
+  box-shadow:0 0 6px rgba(33,150,243,.5);
+}
+.ss-row.ss-eht .ss-row-ic{
+  border-radius:5px;width:26px;height:20px;
+  background:rgba(30,10,0,.85);color:#ff9800;border:1.5px solid #ff9800;
+  box-shadow:0 0 6px rgba(255,120,0,.4);font-size:8px;
+}
+.ss-row-body{flex:1;min-width:0}
+.ss-row-name{font-family:var(--sans);font-size:12px;font-weight:700;color:#0f172a;
+  line-height:1.25;word-break:break-word;letter-spacing:.2px}
+.ss-row.ss-eht .ss-row-name{color:#7c2d12}
+.ss-row-meta{font-family:var(--mono);font-size:9px;color:#64748b;letter-spacing:.4px;
+  margin-top:2px}
+.ss-empty{padding:24px;text-align:center;color:#94a3b8;font-size:11px;font-style:italic}
 
 /* ── FEEDER NAME — show the full name (no clipping) ── */
 .fr-name{
@@ -774,7 +951,7 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 <body>
 <div id="loader">
   <div class="ld-logo">TGSPDCL</div>
-  <div class="ld-sub">SCADA GRID MAP · 33KV</div>
+  <div class="ld-sub">KALYANNAGAR SECTION · 33KV</div>
   <div class="ld-bar"><div class="ld-fill" id="ldfill"></div></div>
 </div>
 
@@ -797,12 +974,28 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 <div id="panel">
   <div id="panel-resize"></div>
-  <div class="psec">
+
+  <!-- ── TAB STRIP (added 09 May 2026 per Naresh) ── -->
+  <div class="lpanel-tabs">
+    <button class="lpanel-tab active" data-tab="feeders" onclick="switchLpanelTab('feeders')">
+      <span class="ltab-ic">⚡</span>
+      <span class="ltab-lbl">FEEDERS</span>
+      <span class="ltab-cnt" id="ltab-cnt-feeders">—</span>
+    </button>
+    <button class="lpanel-tab" data-tab="ss" onclick="switchLpanelTab('ss')">
+      <span class="ltab-ic">⊙</span>
+      <span class="ltab-lbl">SUBSTATIONS</span>
+      <span class="ltab-cnt" id="ltab-cnt-ss">—</span>
+    </button>
+  </div>
+
+  <!-- ── FEEDERS TAB ── -->
+  <div class="psec lpanel-pane active" id="lpane-feeders">
     <div class="psec-t" style="display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:13px;color:#1e3a5f;letter-spacing:1px;font-weight:700">// FEEDERS <span style="font-size:10px;color:#64748b;letter-spacing:1px;font-weight:400">CLICK TO FOCUS</span></span>
       <div style="display:flex;gap:4px">
-        <button style="font-family:var(--sans);font-size:10px;color:#fff;cursor:pointer;font-weight:700;background:#2563eb;border:none;border-radius:12px;padding:3px 10px;transition:all .2s" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" onclick="toggleAllFeeders(true)" style="font-family:var(--sans);font-size:11px;color:#fff;cursor:pointer;font-weight:700;background:#2563eb;border:none;border-radius:12px;padding:4px 12px;transition:all .2s">ALL</button>
-        <button style="font-family:var(--sans);font-size:10px;color:#64748b;cursor:pointer;font-weight:700;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:3px 10px;transition:all .2s" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="toggleAllFeeders(false)" style="font-family:var(--sans);font-size:11px;color:#64748b;cursor:pointer;font-weight:700;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:4px 12px;transition:all .2s">NONE</button>
+        <button style="font-family:var(--sans);font-size:10px;color:#fff;cursor:pointer;font-weight:700;background:#2563eb;border:none;border-radius:12px;padding:3px 10px;transition:all .2s" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" onclick="toggleAllFeeders(true)">ALL</button>
+        <button style="font-family:var(--sans);font-size:10px;color:#64748b;cursor:pointer;font-weight:700;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:3px 10px;transition:all .2s" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" onclick="toggleAllFeeders(false)">NONE</button>
       </div>
     </div>
     <div class="fsearch-wrap">
@@ -810,6 +1003,23 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
       <input class="fsearch-input" id="feederSearch" placeholder="Search feeders…" autocomplete="off" oninput="filterFeeders(this.value)"/>
     </div>
     <div id="feederChecks" style="display:flex;flex-direction:column;margin-top:2px"></div>
+  </div>
+
+  <!-- ── SUBSTATIONS TAB ── -->
+  <div class="psec lpanel-pane" id="lpane-ss" style="display:none">
+    <div class="psec-t" style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:#1e3a5f;letter-spacing:1px;font-weight:700">// SUBSTATIONS <span style="font-size:10px;color:#64748b;letter-spacing:1px;font-weight:400">CLICK TO FLY</span></span>
+    </div>
+    <div class="fsearch-wrap">
+      <span class="fsearch-ic">⌕</span>
+      <input class="fsearch-input" id="ssSearch" placeholder="Search substations (name / division)…" autocomplete="off" oninput="renderSSList(this.value)"/>
+    </div>
+    <div class="ss-typebar">
+      <button class="ss-typebtn active" data-sst="all" onclick="setSSTypeFilter('all',this)">ALL</button>
+      <button class="ss-typebtn" data-sst="33" onclick="setSSTypeFilter('33',this)">33/11KV</button>
+      <button class="ss-typebtn" data-sst="eht" onclick="setSSTypeFilter('eht',this)">EHT</button>
+    </div>
+    <div id="ssList" class="ss-list"></div>
   </div>
 
 
@@ -981,6 +1191,17 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
       </div>
       <button class="tb-upload-btn" onclick="document.getElementById('dfFileInput2').click()" style="width:100%;justify-content:center;margin-bottom:6px;font-size:9px">⬆ Upload CSV / XLSX</button>
       <input type="file" id="dfFileInput2" accept=".csv,.xlsx,.xls" onchange="handleFileUpload(this)" style="display:none"/>
+
+      <!-- ── BULK SECTION DELETE (added 09 May 2026 per Naresh) ── -->
+      <div style="border-top:1px dashed rgba(0,0,0,.1);margin:10px 0 8px;padding-top:8px">
+        <div style="font-family:var(--mono);font-size:8px;color:#dc2626;letter-spacing:1.5px;margin-bottom:6px;font-weight:700">⚠ BULK DELETE BY SECTION</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select class="df-select" id="dfSectionDel" style="flex:1;font-size:10px;border-color:#fca5a5;background:#fff5f5"><option value="">— pick section —</option></select>
+          <button class="df-btn df-del-section" onclick="deleteWholeSection()" style="font-size:9px;background:#dc2626;color:#fff;font-weight:700">DELETE</button>
+        </div>
+        <div style="font-family:var(--sans);font-size:9px;color:#94a3b8;margin-top:5px;line-height:1.4">Removes every uploaded feeder belonging to the selected section — from map, panel, and Firebase.</div>
+      </div>
+
       <div style="font-family:var(--mono);font-size:9px;color:rgba(176,204,224,.3);line-height:1.5">Upload feeder CSV/XLSX → select → RUN.<br>SS/EHT always visible.</div>
     </div>
   </div>
@@ -989,14 +1210,16 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 <script>
 // ══════════════════════════════════════════════════
 // MAP — Google Maps-grade smoothness
-// Performance tuning (09 May 2026):
-//   - preferCanvas:true → polylines + circle markers render on canvas (much faster than SVG for thousands of features)
-//   - keepBuffer high so panning never blanks tiles
-//   - wheelDebounceTime + zoomDelta tuned for buttery scroll
+// Performance tuning notes:
+//   - preferCanvas:false — lines MUST be SVG so the energy-flow + breakdown
+//     blink CSS animations can run. Canvas-rendered lines can't be CSS-animated.
+//   - Circle markers (poles) are explicitly on canvas via renderer:_CR
+//     to keep the heavy point load fast.
+//   - keepBuffer + updateWhenIdle tuned so panning never blanks tiles.
 // ══════════════════════════════════════════════════
 const map = L.map('map',{
   center:[17.4400,78.3900], zoom:14, zoomControl:false,
-  preferCanvas:true,
+  preferCanvas:false,
   zoomAnimation:true, zoomAnimationThreshold:4,
   fadeAnimation:true, markerZoomAnimation:true,
   inertia:true, inertiaDeceleration:3500, inertiaMaxSpeed:Infinity,
@@ -1773,6 +1996,9 @@ function buildFeederChecks(){
   const container=document.getElementById('feederChecks');
   if(!container)return;container.innerHTML='';
 
+  // Refresh tab counts
+  if(typeof _refreshLpanelCounts==='function')_refreshLpanelCounts();
+
   const tree=buildHierarchyTree();
 
   // Keep a flat lookup for getFeederColor / particles
@@ -1970,6 +2196,117 @@ function toggleAllFeeders(show){
   requestVisibilityUpdate();
   buildFeederChecks();
   toast(show?'All feeders shown':'All feeders hidden');
+}
+
+// ─────────────────────────────────────────────────────────────
+// LEFT PANEL TABS — Feeders / Substations (added 09 May 2026)
+// ─────────────────────────────────────────────────────────────
+let _ssTypeFilter='all';
+let _ssListData=[];   // current sorted/filtered list — index used by click handler
+
+function switchLpanelTab(name){
+  document.querySelectorAll('.lpanel-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  document.querySelectorAll('.lpanel-pane').forEach(p=>{
+    const isActive=p.id==='lpane-'+name;
+    p.classList.toggle('active',isActive);
+    p.style.display=isActive?'flex':'none';
+  });
+  if(name==='ss')renderSSList(document.getElementById('ssSearch')?.value||'');
+}
+
+function setSSTypeFilter(t,btn){
+  _ssTypeFilter=t;
+  document.querySelectorAll('.ss-typebtn').forEach(b=>b.classList.toggle('active',b.dataset.sst===t));
+  renderSSList(document.getElementById('ssSearch')?.value||'');
+}
+
+function renderSSList(query){
+  const list=document.getElementById('ssList');
+  if(!list)return;
+  const q=String(query||'').trim().toLowerCase();
+  const ss33=(STATIC_SS33||[]).filter(s=>s&&s.name);
+  const ehts=(STATIC_EHT||[]).filter(s=>s&&s.name);
+
+  let combined=[];
+  if(_ssTypeFilter==='all'||_ssTypeFilter==='33'){
+    ss33.forEach(s=>combined.push({...s,_type:'33'}));
+  }
+  if(_ssTypeFilter==='all'||_ssTypeFilter==='eht'){
+    ehts.forEach(s=>combined.push({...s,_type:'eht'}));
+  }
+
+  if(q){
+    combined=combined.filter(s=>{
+      const blob=(s.name+' '+(s.section||'')+' '+(s.division||'')+' '+(s.sub_div||'')).toLowerCase();
+      return blob.includes(q);
+    });
+  }
+  // Sort by division then name
+  combined.sort((a,b)=>{
+    const da=String(a.division||'ZZ');
+    const db=String(b.division||'ZZ');
+    if(da!==db)return da.localeCompare(db);
+    return String(a.name||'').localeCompare(String(b.name||''));
+  });
+
+  _ssListData=combined;
+
+  // Update counter
+  const ssCntEl=document.getElementById('ltab-cnt-ss');
+  if(ssCntEl)ssCntEl.textContent=ss33.length+ehts.length;
+
+  if(!combined.length){
+    list.innerHTML='<div class="ss-empty">No substations match.</div>';return;
+  }
+  // Group by division
+  const byDiv={};
+  combined.forEach((s,idx)=>{
+    s._idx=idx;
+    const k=s.division||'OTHER';
+    if(!byDiv[k])byDiv[k]=[];
+    byDiv[k].push(s);
+  });
+
+  let html='';
+  Object.keys(byDiv).sort().forEach(div=>{
+    html+=`<div style="font-family:var(--mono);font-size:9px;color:#1d4ed8;letter-spacing:1.5px;font-weight:700;padding:8px 12px 4px;background:#eff6ff;margin:6px 4px 2px;border-radius:6px">${div.toUpperCase()} <span style="color:#94a3b8;font-weight:400">(${byDiv[div].length})</span></div>`;
+    byDiv[div].forEach(s=>{
+      const isEHT=s._type==='eht';
+      const shortName=s.name.replace(/33\/11KV\s?/i,'').replace(/^\d+\s*KV\s*/i,'').replace(/\s?SS$/i,'').trim();
+      const meta=isEHT
+        ? (s.feeders?s.feeders+' feeders · '+s.ptr_cap+' MVA':'EHT')
+        : (s.section||'');
+      html+=`
+        <div class="ss-row ${isEHT?'ss-eht':''}" onclick="flyToSSByIdx(${s._idx})">
+          <div class="ss-row-ic">${isEHT?'⚡EHT':'⚡'}</div>
+          <div class="ss-row-body">
+            <div class="ss-row-name">${shortName}</div>
+            <div class="ss-row-meta">${meta}</div>
+          </div>
+        </div>`;
+    });
+  });
+  list.innerHTML=html;
+}
+
+function flyToSSByIdx(idx){
+  const s=_ssListData[idx];
+  if(!s||!s.lat||!s.lon)return;
+  const zoom=s._type==='eht'?15:17;
+  map.flyTo([s.lat,s.lon],zoom,{animate:true,duration:.85,easeLinearity:.25});
+  // Use existing flyToSS for popup + linked feeder display
+  if(typeof flyToSS==='function'){
+    setTimeout(()=>{ try{ flyToSS(s); }catch(e){} },650);
+  }
+  toast('📍 '+s.name.substring(0,40),2000);
+}
+
+// Update FEEDERS count in tab strip whenever feederNames changes
+function _refreshLpanelCounts(){
+  const fEl=document.getElementById('ltab-cnt-feeders');
+  if(fEl)fEl.textContent=feederNames.size;
+  const sEl=document.getElementById('ltab-cnt-ss');
+  if(sEl)sEl.textContent=(STATIC_SS33?.length||0)+(STATIC_EHT?.length||0);
 }
 
 function toggleLyr(key){
@@ -2469,6 +2806,9 @@ function dismissLoader(){
 setTimeout(()=>{
   dismissLoader();renderStaticSS();buildFeederChecks();updateCounts();buildDropdownOptions();
   if(typeof buildHierFilters==='function')buildHierFilters();
+  if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
+  if(typeof renderSSList==='function')renderSSList('');
+  if(typeof _refreshLpanelCounts==='function')_refreshLpanelCounts();
   feederNames.forEach(fn=>attachSegmentDistanceClick(fn));
   (window.requestIdleCallback||setTimeout)(()=>{requestVisibilityUpdate();syncLabels();},{timeout:500});
   toast('Kalyannagar 33KV section loaded — '+allLayers.length+' features',3000);
@@ -2478,9 +2818,9 @@ setTimeout(()=>dismissLoader(),5000);
 function syncLabels(){
   const z=map.getZoom();
   const showPoleLabels=z>=17;const showSSLabels=z>=13;
-  // Hide energy-flow overlays when zoomed far out — saves a TON of CPU
-  // (each flow polyline runs a CSS animation continuously).
-  const showFlow=z>=12;
+  // Hide energy-flow overlays only at very far-out zooms. At z>=10 the flow
+  // animation is the visual signature of the map — don't kill it prematurely.
+  const showFlow=z>=10;
   allLayers.forEach(item=>{
     if(item.reg.type.startsWith('ss')||item.reg.type.startsWith('eht')){
       if(item.layer.getTooltip){const tip=item.layer.getTooltip();if(tip){if(showSSLabels&&map.hasLayer(item.layer))item.layer.openTooltip&&item.layer.openTooltip();else item.layer.closeTooltip&&item.layer.closeTooltip();}}
@@ -2489,9 +2829,10 @@ function syncLabels(){
       if(showPoleLabels&&map.hasLayer(item.layer)){if(!item.layer.getTooltip())item.layer.bindTooltip(item.poleNo,{permanent:true,direction:'right',className:'pole-label',offset:[6,0]});}
       else{if(item.layer.getTooltip())item.layer.unbindTooltip();}
     }
-    // Manage flow animation by zoom
+    // Manage flow animation by zoom AND feeder status
     if(item.layer.flowLayer){
       const cs=feederStatus[item.feederName]||'live';
+      // Flow visible ONLY when: zoomed in enough AND feeder is live AND line is on map
       const shouldShow=showFlow&&cs==='live'&&map.hasLayer(item.layer);
       safelyManageClass(item.layer.flowLayer,'hidden-flow',!shouldShow);
     }
@@ -3698,6 +4039,7 @@ function renderUploadedRows(rows,sourceFileName){
 
   updateVisibility();buildFeederChecks();updateCounts();buildDropdownOptions();
   if(typeof buildHierFilters==='function')buildHierFilters();
+  if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
   allRenderedFeeders.forEach(f=>attachSegmentDistanceClick(f.feederName));
 
   const totalPts=allRenderedFeeders.reduce((s,f)=>s+f.points,0);
@@ -3744,6 +4086,7 @@ function deleteUploadedFeeder(){
   feederNames.delete(feederName);delete feederState[feederName];delete feederSectionMap[feederName];delete feederHierarchyMap[feederName];delete uploadedFiles[key];
   sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
   sel.value='';buildFeederChecks();updateCounts();
+  if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
   if(typeof fbSet==='function') fbSet(`uploadedFeeders/${safeFbKey(key)}`,null);
   toast('🗑 Deleted: '+feederName.substring(0,25),2500);
 }
@@ -3755,7 +4098,83 @@ function deleteFeederFromMap(fn,e){
   removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];delete feederSectionMap[fn];delete feederHierarchyMap[fn];
   Object.keys(uploadedFiles).forEach(k=>{if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){delete uploadedFiles[k];document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove(); if(typeof fbSet==='function')fbSet(`uploadedFeeders/${safeFbKey(k)}`,null);}});
   buildFeederChecks();updateCounts();
+  if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
   toast('🗑 Deleted: '+fn.substring(0,25),2500);
+}
+
+// ─────────────────────────────────────────────────────────────
+// BULK SECTION DELETE (added 09 May 2026 per Naresh)
+// Deletes every uploaded feeder belonging to a chosen section.
+// ─────────────────────────────────────────────────────────────
+function refreshSectionDeleteDropdown(){
+  const sel=document.getElementById('dfSectionDel');
+  if(!sel)return;
+  const cur=sel.value;
+  // Collect every section that has at least one UPLOADED feeder
+  const sections=new Set();
+  Object.values(uploadedFiles||{}).forEach(f=>{
+    if(!f||!f.feederName)return;
+    const fn=f.feederName;
+    const h=feederHierarchyMap[fn]||{};
+    const m=feederMetaMap[fn]||{};
+    const sec=(h.section||m.sec||feederSectionMap[fn]||'').trim();
+    if(sec)sections.add(sec);
+  });
+  sel.innerHTML='<option value="">— pick section —</option>';
+  [...sections].sort().forEach(s=>{
+    // Count feeders in this section
+    let cnt=0;
+    Object.values(uploadedFiles||{}).forEach(f=>{
+      if(!f||!f.feederName)return;
+      const fn=f.feederName;
+      const h=feederHierarchyMap[fn]||{};
+      const m=feederMetaMap[fn]||{};
+      const sec=(h.section||m.sec||feederSectionMap[fn]||'').trim();
+      if(sec===s)cnt++;
+    });
+    const o=document.createElement('option');
+    o.value=s;
+    o.textContent=s+' ('+cnt+' feeder'+(cnt===1?'':'s')+')';
+    sel.appendChild(o);
+  });
+  if(cur&&[...sections].includes(cur))sel.value=cur;
+}
+
+function deleteWholeSection(){
+  const sel=document.getElementById('dfSectionDel');
+  const section=sel?.value;
+  if(!section){toast('Pick a section first',2000);return;}
+  // Find all feeders in this section
+  const targets=[];
+  Object.entries(uploadedFiles||{}).forEach(([key,f])=>{
+    if(!f||!f.feederName)return;
+    const fn=f.feederName;
+    const h=feederHierarchyMap[fn]||{};
+    const m=feederMetaMap[fn]||{};
+    const sec=(h.section||m.sec||feederSectionMap[fn]||'').trim();
+    if(sec===section)targets.push({key,fn});
+  });
+  if(!targets.length){toast('No feeders found in '+section,2000);return;}
+  if(!confirm(`Delete ALL ${targets.length} feeder(s) in section "${section}"?\n\nThis removes them from the map, the side panel, and Firebase.\nThis cannot be undone.`))return;
+  let n=0;
+  targets.forEach(({key,fn})=>{
+    if(focusedFeeder===fn)exitFocusedFeeder();
+    removeFeederLayers(fn);
+    feederNames.delete(fn);
+    delete feederState[fn];
+    delete feederSectionMap[fn];
+    delete feederHierarchyMap[fn];
+    delete feederMetaMap[fn];
+    delete uploadedFiles[key];
+    document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
+    if(typeof fbSet==='function')fbSet(`uploadedFeeders/${safeFbKey(key)}`,null).catch(()=>{});
+    n++;
+  });
+  buildFeederChecks();
+  updateCounts();
+  if(typeof buildHierFilters==='function')buildHierFilters();
+  refreshSectionDeleteDropdown();
+  toast(`🗑 Deleted ${n} feeder(s) in section "${section}"`,3500);
 }
 /* =========================================================
    FIREBASE INTEGRATION — TGSPDCL KALYANNAGAR GIS
@@ -3933,6 +4352,8 @@ function fbLoadUploadedFiles(){
     if(loaded>0){
       buildFeederChecks();
       updateCounts();
+      if(typeof buildHierFilters==='function')buildHierFilters();
+      if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
       feederNames.forEach(function(fn){attachSegmentDistanceClick(fn);});
       toast('☁️ '+loaded+' feeder(s) restored from Firebase',3000);
       showFbStatus('saved');
