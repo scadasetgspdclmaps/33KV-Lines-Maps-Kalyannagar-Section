@@ -1037,7 +1037,7 @@ path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!im
 <body>
 <div id="loader">
   <div class="ld-logo">TGSPDCL</div>
-  <div class="ld-sub">KALYANNAGAR SECTION · 33KV</div>
+  <div class="ld-sub">SCADA-33KV FEEDER GRID MAP</div>
   <div class="ld-bar"><div class="ld-fill" id="ldfill"></div></div>
 </div>
 
@@ -1442,7 +1442,7 @@ function ssKey(name, lat, lon){
 // ── Diamond pole icon for V6 style ──
 function diamondIcon(color){
   const s=`<svg width="11" height="11" viewBox="0 0 11 11"><rect x=".8" y=".8" width="9.4" height="9.4" rx="1.5" transform="rotate(45 5.5 5.5)" fill="${color}" stroke="rgba(255,255,255,.8)" stroke-width="1.2" style="filter:drop-shadow(0 0 2px ${color})"/></svg>`;
-  return L.divIcon({className:'',html:s,iconSize:[11,11],iconAnchor:[5,5]});
+  return L.divIcon({className:'',html:s,iconSize:[14,14],iconAnchor:[7,7]});
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1546,7 +1546,7 @@ function renderStaticSS(){
 
 function mkIcon(fill,stroke,shape){
   const s=`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13'>${shape==='square'?`<rect width='13' height='13' rx='2' fill='${fill}' stroke='${stroke}' stroke-width='2'/>`:`<circle cx='6.5' cy='6.5' r='5.5' fill='${fill}' stroke='${stroke}' stroke-width='2'/>`}</svg>`;
-  return L.divIcon({className:'',html:s,iconSize:[13,13],iconAnchor:[6,6]});
+  return L.divIcon({className:'',html:s,iconSize:[16,16],iconAnchor:[8,8]});
 }
 
 // ── AUTO-DISCOVERY ENGINE ──────────────────────────────────────
@@ -1694,11 +1694,11 @@ DATA_REGISTRY.forEach(reg=>{
       if(reg.type==='points'||reg.type==='fpoles'){
         layer=L.circleMarker(ll,{radius:3.5,fillColor:'#fff',fillOpacity:1,color:cableColor(cableType,isOH),weight:1.5,pane:'pointsPane',renderer:_CR});
       }else if(reg.type==='cut'){
-        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 11 11'><line x1='2' y1='2' x2='9' y2='9' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/><line x1='9' y1='2' x2='2' y2='9' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/></svg>`,iconSize:[11,11],iconAnchor:[5.5,5.5]}),pane:'pointsPane'});
+        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 11 11'><line x1='2' y1='2' x2='9' y2='9' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/><line x1='9' y1='2' x2='2' y2='9' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/></svg>`,iconSize:[11,11],iconAnchor:[5.5,5.5]}),pane:'pointsPane'});
       regType='cut';
       }else if(reg.type==='ab'||reg.type==='dp'){
         const isAB=(reg.type==='ab');
-        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='10' viewBox='0 0 22 16'><line x1='0' y1='8' x2='6' y2='8' stroke='#ff9800' stroke-width='1.5'/><circle cx='11' cy='8' r='6' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1.5'/><rect x='5.5' y='5.5' width='11' height='3' rx='1' fill='#ff9800'/><circle cx='6.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><circle cx='15.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><line x1='16' y1='8' x2='22' y2='8' stroke='#ff9800' stroke-width='1.5'/></svg>`,iconSize:[14,10],iconAnchor:[7,5]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='12' height='13' viewBox='0 0 16 18'><line x1='4' y1='0' x2='4' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='0' x2='12' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='4' y1='7' x2='12' y2='7' stroke='#2196f3' stroke-width='2' stroke-linecap='round'/><circle cx='4' cy='3' r='2' fill='#2196f3'/><circle cx='12' cy='3' r='2' fill='#2196f3'/></svg>`,iconSize:[12,13],iconAnchor:[6,6.5]}),pane:'pointsPane'});
+        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='18' height='13' viewBox='0 0 22 16'><line x1='0' y1='8' x2='6' y2='8' stroke='#ff9800' stroke-width='1.5'/><circle cx='11' cy='8' r='6' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1.5'/><rect x='5.5' y='5.5' width='11' height='3' rx='1' fill='#ff9800'/><circle cx='6.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><circle cx='15.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><line x1='16' y1='8' x2='22' y2='8' stroke='#ff9800' stroke-width='1.5'/></svg>`,iconSize:[18,13],iconAnchor:[9,6.5]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='18' viewBox='0 0 16 18'><line x1='4' y1='0' x2='4' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='0' x2='12' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='4' y1='7' x2='12' y2='7' stroke='#2196f3' stroke-width='2' stroke-linecap='round'/><circle cx='4' cy='3' r='2' fill='#2196f3'/><circle cx='12' cy='3' r='2' fill='#2196f3'/></svg>`,iconSize:[16,18],iconAnchor:[8,9]}),pane:'pointsPane'});
       }else if(reg.type.startsWith('ss33')){
         const h=`<div class="ss33-wrap"><div class="ss33-ring"></div><div class="ss33-core"><span class="ss33-bolt">⚡</span></div></div>`;
         layer=L.marker(ll,{zIndexOffset:1000,icon:L.divIcon({className:'',html:h,iconSize:[36,36],iconAnchor:[18,18]})});
@@ -3947,6 +3947,13 @@ function handleFileUpload(input){
     const key=file.name;
     uploadedFiles[key]={feederName:fn,rows,fileName:file.name,section};
     feederSectionMap[fn]=section;
+
+    // Cloud persistence: save immediately after upload too, so it survives refresh
+    // even if the user forgets to click RUN. RUN still saves again after drawing.
+    if(typeof fbSaveUploadedFeeder==='function'){
+      try{ fbSaveUploadedFeeder(key, fn, rows, file.name, section); }
+      catch(err){ console.error('Upload Firebase save trigger failed:', err); }
+    }
     const sel=document.getElementById('dfFileSelect');
     let opt=sel.querySelector('option[value="'+CSS.escape(key)+'"]');
     if(!opt){opt=document.createElement('option');opt.value=key;sel.appendChild(opt);}
@@ -4197,18 +4204,18 @@ function renderUploadedRows(rows,sourceFileName){
         regType='dp';
         // DP Structure — purple double-pole symbol
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',
-          html:`<svg xmlns='http://www.w3.org/2000/svg' width='11' height='13' viewBox='0 0 14 16'>
+          html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='18' viewBox='0 0 14 16'>
             <line x1='3' y1='1' x2='3' y2='15' stroke='#9c27b0' stroke-width='2.4' stroke-linecap='round'/>
             <line x1='11' y1='1' x2='11' y2='15' stroke='#9c27b0' stroke-width='2.4' stroke-linecap='round'/>
             <line x1='3' y1='6' x2='11' y2='6' stroke='#9c27b0' stroke-width='1.8'/>
             <circle cx='3' cy='3' r='1.6' fill='#9c27b0' stroke='#fff' stroke-width='.6'/>
             <circle cx='11' cy='3' r='1.6' fill='#9c27b0' stroke='#fff' stroke-width='.6'/>
           </svg>`,
-          iconSize:[11,13],iconAnchor:[5.5,6.5]}),pane:'pointsPane'});
+          iconSize:[16,18],iconAnchor:[8,9]}),pane:'pointsPane'});
       }else if(isCut){
         regType='cut';
         // Cut Point — small yellow "X"
-        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 10 10'><line x1='1.5' y1='1.5' x2='8.5' y2='8.5' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/><line x1='8.5' y1='1.5' x2='1.5' y2='8.5' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/></svg>`,iconSize:[8,8],iconAnchor:[4,4]}),pane:'pointsPane'});
+        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 13 13'><line x1='2' y1='2' x2='11' y2='11' stroke='#ffeb3b' stroke-width='2.4' stroke-linecap='round'/><line x1='11' y1='2' x2='2' y2='11' stroke='#ffeb3b' stroke-width='2.4' stroke-linecap='round'/></svg>`,iconSize:[13,13],iconAnchor:[6.5,6.5]}),pane:'pointsPane'});
       }else if(p.pn.spurKey){
         layer=L.circleMarker([p.lat,p.lng],{radius:3,fillColor:'#ffe082',fillOpacity:1,color:'#ff9800',weight:1.5,pane:'pointsPane',renderer:_CR});
       }else{
@@ -4266,7 +4273,10 @@ function runUploadedFeeder(){
 
   // Save to Firebase permanently
   if(typeof fbSaveUploadedFeeder==='function'){
-    fbSaveUploadedFeeder(key, feederName, rows, fileName);
+    fbSaveUploadedFeeder(key, feederName, rows, fileName, section);
+  }else{
+    toast('⚠️ Firebase save function missing in this HTML',4000);
+    console.warn('fbSaveUploadedFeeder is missing; uploaded feeder will not persist.');
   }
 }
 
@@ -4470,7 +4480,7 @@ function fbLoadFeederStatuses(){
 
 // ── Save uploaded feeder to Firebase ──
 // Rows stored as a single escaped JSON string to avoid ALL key sanitization issues
-function fbSaveUploadedFeeder(key,feederName,rows,fileName){
+function fbSaveUploadedFeeder(key,feederName,rows,fileName,section){
   showFbStatus('saving');
   try{
     // Convert every value to string to ensure clean JSON
@@ -4507,7 +4517,7 @@ function fbSaveUploadedFeeder(key,feederName,rows,fileName){
     .then(function(){
       toast('☁️ Saved to Firebase — survives refresh',3000);
       showFbStatus('saved');
-      console.log('Firebase save OK:',path,'rows:',cleanRows.length);
+      console.log('Firebase save OK:',path,'rows:',cleanRows.length,'Check:',FIREBASE_URL+'/uploadedFeeders.json');
     })
     .catch(function(err){
       console.error('Firebase save error:',err.message);
@@ -4551,12 +4561,12 @@ function fbLoadUploadedFiles(){
         }
         if(!rows.length)return;
         // Store in uploadedFiles so DEL button works
-        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows};
+        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows,section:item.section||getSectionFromRows(rows,feederName)};
         // Add to dropdown
         if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
           const opt=document.createElement('option');
           opt.value=fileKey;
-          opt.textContent=fileKey.substring(0,30)+' ('+feederName.substring(0,20)+')';
+          opt.textContent=(item.section||getSectionFromRows(rows,feederName)||'UPLOADED')+' — '+fileKey.substring(0,30)+' ('+feederName.substring(0,20)+')';
           sel.appendChild(opt);
         }
         // Render on map
