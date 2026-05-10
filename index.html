@@ -193,12 +193,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--navy)}
 .eht-kv{font-family:var(--mono);font-size:7px;color:rgba(255,160,60,.9);line-height:1;letter-spacing:.5px;pointer-events:none}
 
 /* FLOW ANIMATION */
-@keyframes energy-flow-overlay{to{stroke-dashoffset:-24}}
-.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!important;
-  animation:energy-flow-overlay .8s linear infinite!important;pointer-events:none!important;
-  will-change:stroke-dashoffset}
-path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!important;
-  animation:energy-flow-overlay .8s linear infinite!important;pointer-events:none!important}
+@keyframes energy-flow-overlay{to{stroke-dashoffset:-28}}
+.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!important;
+  animation:energy-flow-overlay 2.2s linear infinite!important;pointer-events:none!important;
+  stroke-opacity:.78!important}
+path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!important;
+  animation:energy-flow-overlay 2.2s linear infinite!important;pointer-events:none!important;
+  stroke-opacity:.78!important}
 @keyframes sos-blink{
   0%,100%{opacity:1;filter:drop-shadow(0 0 14px #ff1744) drop-shadow(0 0 6px #ff1744)}
   50%{opacity:.15;filter:drop-shadow(0 0 4px #ff1744)}
@@ -426,19 +427,17 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
    the glow to medium-zoom and above via the .map-zoomed-far class on
    the map container.
 */
-.fv6-ug{filter:drop-shadow(0 0 2px #2196f3)!important;will-change:auto}
-.fv6-oh{filter:drop-shadow(0 0 2px #ff9800)!important;will-change:auto}
-.fv6-tr{filter:drop-shadow(0 0 2px #9c27b0)!important;will-change:auto}
+.fv6-ug{filter:drop-shadow(0 0 2px #2196f3)!important}
+.fv6-oh{filter:drop-shadow(0 0 2px #ff9800)!important}
+.fv6-tr{filter:drop-shadow(0 0 2px #9c27b0)!important}
 /* Google-Maps-like pan mode: during drag/zoom and at zoomed-out levels, remove
    expensive SVG filters + labels + CSS flow animation. This keeps the map moving
    immediately, then restores the SCADA styling after interaction ends. */
 #map.is-interacting .fv6-ug,#map.is-interacting .fv6-oh,#map.is-interacting .fv6-tr,
 #map.map-zoomed-far .fv6-ug,#map.map-zoomed-far .fv6-oh,#map.map-zoomed-far .fv6-tr{filter:none!important}
 #map.is-interacting .pole-label,#map.is-interacting .ss-label{display:none!important}
-#map.map-zoomed-far .feeder-flow-overlay{display:none!important}
-
-/* During interactive pan/zoom, freeze GPU-heavy animations to keep frame rate up */
-#map.is-interacting .feeder-flow-overlay{animation-play-state:paused!important}
+/* During interactive pan/zoom, keep feeder flow visible but reduce visual cost */
+#map.is-interacting .feeder-flow-overlay{opacity:.65!important}
 #map.is-interacting .ss33-ring{animation-play-state:paused!important}
 #map.is-interacting .ss33-core{animation-play-state:paused!important}
 #map.is-interacting .eht-rect{animation-play-state:paused!important}
@@ -447,9 +446,9 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 
 @keyframes energy-flow-v6{to{stroke-dashoffset:-28}}
-.feeder-flow-overlay{stroke-dasharray:6 16!important;stroke-linecap:round!important;
-  animation:energy-flow-v6 1.4s linear infinite!important;pointer-events:none!important;
-  will-change:stroke-dashoffset;stroke-opacity:.85!important}
+.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!important;
+  animation:energy-flow-v6 2.2s linear infinite!important;pointer-events:none!important;
+  stroke-opacity:.78!important}
 
 /* ══ FEEDER PANEL REDESIGN ══ */
 .fr-row{display:flex;flex-direction:column;padding:8px 10px 6px;border-radius:10px;
@@ -1038,7 +1037,7 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 <body>
 <div id="loader">
   <div class="ld-logo">TGSPDCL</div>
-  <div class="ld-sub">33KV SCADA GRID MAP</div>
+  <div class="ld-sub">KALYANNAGAR SECTION · 33KV</div>
   <div class="ld-bar"><div class="ld-fill" id="ldfill"></div></div>
 </div>
 
@@ -1308,6 +1307,7 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 const map = L.map('map',{
   center:[17.4400,78.3900], zoom:14, zoomControl:false,
   preferCanvas:false,
+  renderer:L.svg({padding:0.1}),
   zoomAnimation:true, zoomAnimationThreshold:4,
   fadeAnimation:true, markerZoomAnimation:true,
   inertia:true, inertiaDeceleration:2200, inertiaMaxSpeed:1800, easeLinearity:0.22,
@@ -1676,15 +1676,15 @@ DATA_REGISTRY.forEach(reg=>{
           {color,weight:3,opacity:1,smoothFactor:1,lineCap:'round',lineJoin:'round',className:customClass.trim()});
         let flowClass='feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':'');
         layer.flowLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
-          {color:'#ffffff',weight:3,className:flowClass,interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
+          {color:'#ffffff',weight:2,opacity:.85,className:flowClass,interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
         layer.hitLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
           {color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false});
         bindFeederLinePopup(layer,feat,reg,feederName,cableType);
-        layer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:4});});
+        layer.on('mouseover',e=>{e.target.setStyle({opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({opacity:.95});});
         layer.on('mouseout',e=>{
           const isFocused=focusedFeeder&&focusedFeeder!==feederName;
-          e.target.setStyle({weight:5.5,opacity:isFocused?.15:.92});
-          if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:3});
+          e.target.setStyle({opacity:isFocused?.15:.92});
+          if(e.target.flowLayer)e.target.flowLayer.setStyle({opacity:.85});
         });
       }
     }
@@ -1694,11 +1694,11 @@ DATA_REGISTRY.forEach(reg=>{
       if(reg.type==='points'||reg.type==='fpoles'){
         layer=L.circleMarker(ll,{radius:3.5,fillColor:'#fff',fillOpacity:1,color:cableColor(cableType,isOH),weight:1.5,pane:'pointsPane',renderer:_CR});
       }else if(reg.type==='cut'){
-        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><line x1='2' y1='2' x2='12' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='2' x2='2' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
+        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 11 11'><line x1='2' y1='2' x2='9' y2='9' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/><line x1='9' y1='2' x2='2' y2='9' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/></svg>`,iconSize:[11,11],iconAnchor:[5.5,5.5]}),pane:'pointsPane'});
       regType='cut';
       }else if(reg.type==='ab'||reg.type==='dp'){
         const isAB=(reg.type==='ab');
-        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='22' height='16' viewBox='0 0 22 16'><line x1='0' y1='8' x2='6' y2='8' stroke='#ff9800' stroke-width='1.5'/><circle cx='11' cy='8' r='6' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1.5'/><rect x='5.5' y='5.5' width='11' height='3' rx='1' fill='#ff9800'/><circle cx='6.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><circle cx='15.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><line x1='16' y1='8' x2='22' y2='8' stroke='#ff9800' stroke-width='1.5'/></svg>`,iconSize:[22,16],iconAnchor:[11,8]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='18' viewBox='0 0 16 18'><line x1='4' y1='0' x2='4' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='0' x2='12' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='4' y1='7' x2='12' y2='7' stroke='#2196f3' stroke-width='2' stroke-linecap='round'/><circle cx='4' cy='3' r='2' fill='#2196f3'/><circle cx='12' cy='3' r='2' fill='#2196f3'/></svg>`,iconSize:[16,18],iconAnchor:[8,9]}),pane:'pointsPane'});
+        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='10' viewBox='0 0 22 16'><line x1='0' y1='8' x2='6' y2='8' stroke='#ff9800' stroke-width='1.5'/><circle cx='11' cy='8' r='6' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1.5'/><rect x='5.5' y='5.5' width='11' height='3' rx='1' fill='#ff9800'/><circle cx='6.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><circle cx='15.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><line x1='16' y1='8' x2='22' y2='8' stroke='#ff9800' stroke-width='1.5'/></svg>`,iconSize:[14,10],iconAnchor:[7,5]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='12' height='13' viewBox='0 0 16 18'><line x1='4' y1='0' x2='4' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='0' x2='12' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='4' y1='7' x2='12' y2='7' stroke='#2196f3' stroke-width='2' stroke-linecap='round'/><circle cx='4' cy='3' r='2' fill='#2196f3'/><circle cx='12' cy='3' r='2' fill='#2196f3'/></svg>`,iconSize:[12,13],iconAnchor:[6,6.5]}),pane:'pointsPane'});
       }else if(reg.type.startsWith('ss33')){
         const h=`<div class="ss33-wrap"><div class="ss33-ring"></div><div class="ss33-core"><span class="ss33-bolt">⚡</span></div></div>`;
         layer=L.marker(ll,{zIndexOffset:1000,icon:L.divIcon({className:'',html:h,iconSize:[36,36],iconAnchor:[18,18]})});
@@ -1856,8 +1856,8 @@ function bindFeederLinePopup(lineLayer, feat, regEntry, feederName, cableType){
   lineLayer.on('click',openAt);
   if(lineLayer.hitLayer){
     lineLayer.hitLayer.on('click',openAt);
-    lineLayer.hitLayer.on('mouseover',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({weight:7.5,opacity:1}); });
-    lineLayer.hitLayer.on('mouseout',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({weight:5.5,opacity:.92}); });
+    lineLayer.hitLayer.on('mouseover',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({opacity:1}); if(lineLayer.flowLayer)lineLayer.flowLayer.setStyle({opacity:.95}); });
+    lineLayer.hitLayer.on('mouseout',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({opacity:.92}); if(lineLayer.flowLayer)lineLayer.flowLayer.setStyle({opacity:.85}); });
   }
 }
 
@@ -2956,12 +2956,12 @@ function dismissLoader(){
                 let fName=p['Feeder_Name']||p['Name of the Feeder']||'Feeder Segments';
                 let cStatus=feederStatus[fName]||'live';
                 const layer=L.polyline(coords,{color,weight:5.5,opacity:.92,lineCap:'round',lineJoin:'round',className:cStatus==='breakdown'?'feeder-breakdown':''});
-                layer.flowLayer=L.polyline(coords,{color:'#ffffff',weight:3,className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
+                layer.flowLayer=L.polyline(coords,{color:'#ffffff',weight:2,opacity:.85,className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
                 const regData={type:'fsegs',feeder:'Feeder Segments',cable:'-'};
                 layer.bindPopup(popup(feat,regData));
                 layer.on('popupopen',function(e){e.popup.setContent(popup(feat,regData));});
-                layer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:4});});
-                layer.on('mouseout',e=>{const isFocused=focusedFeeder&&focusedFeeder!==fName;e.target.setStyle({weight:5.5,opacity:isFocused?.15:.92});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:3});});
+                layer.on('mouseover',e=>{e.target.setStyle({opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({opacity:.95});});
+                layer.on('mouseout',e=>{const isFocused=focusedFeeder&&focusedFeeder!==fName;e.target.setStyle({opacity:isFocused?.15:.92});if(e.target.flowLayer)e.target.flowLayer.setStyle({opacity:.85});});
                 allLayers.push({layer,reg:regData,feederName:fName,cable:segCable,poleNo:null});
                 if(!feederLayerMap[fName])feederLayerMap[fName]=[];
                 feederLayerMap[fName].push({layer,reg:regData,cable:segCable});
@@ -4012,8 +4012,8 @@ function _drawSegment(feederName, coords, typeRaw, regLine){
   // White energy-flow overlay: thin enough so UG/OH color remains visible.
   const flowLayer=L.polyline(coords,{
     color:'#ffffff',
-    weight:2.2,
-    opacity:0.9,
+    weight:2,
+    opacity:0.85,
     className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),
     interactive:false,bubblingMouseEvents:false,pane:'flowPane'
   });
@@ -4188,27 +4188,27 @@ function renderUploadedRows(rows,sourceFileName){
         regType='ab';
         // Distinctive AB Switch icon — orange diamond with central bar
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',
-          html:`<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'>
-            <rect x='2' y='2' width='14' height='14' rx='2' transform='rotate(45 9 9)' fill='#ff9800' stroke='#fff' stroke-width='1.4' style='filter:drop-shadow(0 0 3px #ff9800)'/>
+          html:`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 18 18'>
+            <rect x='2' y='2' width='14' height='14' rx='2' transform='rotate(45 9 9)' fill='#ff9800' stroke='#fff' stroke-width='1.4'/>
             <line x1='4.5' y1='9' x2='13.5' y2='9' stroke='#fff' stroke-width='2.2' stroke-linecap='round'/>
           </svg>`,
-          iconSize:[18,18],iconAnchor:[9,9]}),pane:'pointsPane'});
+          iconSize:[13,13],iconAnchor:[6.5,6.5]}),pane:'pointsPane'});
       }else if(isDP){
         regType='dp';
         // DP Structure — purple double-pole symbol
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',
-          html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='16' viewBox='0 0 14 16'>
+          html:`<svg xmlns='http://www.w3.org/2000/svg' width='11' height='13' viewBox='0 0 14 16'>
             <line x1='3' y1='1' x2='3' y2='15' stroke='#9c27b0' stroke-width='2.4' stroke-linecap='round'/>
             <line x1='11' y1='1' x2='11' y2='15' stroke='#9c27b0' stroke-width='2.4' stroke-linecap='round'/>
             <line x1='3' y1='6' x2='11' y2='6' stroke='#9c27b0' stroke-width='1.8'/>
             <circle cx='3' cy='3' r='1.6' fill='#9c27b0' stroke='#fff' stroke-width='.6'/>
             <circle cx='11' cy='3' r='1.6' fill='#9c27b0' stroke='#fff' stroke-width='.6'/>
           </svg>`,
-          iconSize:[14,16],iconAnchor:[7,8]}),pane:'pointsPane'});
+          iconSize:[11,13],iconAnchor:[5.5,6.5]}),pane:'pointsPane'});
       }else if(isCut){
         regType='cut';
         // Cut Point — small yellow "X"
-        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><line x1='1.5' y1='1.5' x2='8.5' y2='8.5' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/><line x1='8.5' y1='1.5' x2='1.5' y2='8.5' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/></svg>`,iconSize:[10,10],iconAnchor:[5,5]}),pane:'pointsPane'});
+        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 10 10'><line x1='1.5' y1='1.5' x2='8.5' y2='8.5' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/><line x1='8.5' y1='1.5' x2='1.5' y2='8.5' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/></svg>`,iconSize:[8,8],iconAnchor:[4,4]}),pane:'pointsPane'});
       }else if(p.pn.spurKey){
         layer=L.circleMarker([p.lat,p.lng],{radius:3,fillColor:'#ffe082',fillOpacity:1,color:'#ff9800',weight:1.5,pane:'pointsPane',renderer:_CR});
       }else{
