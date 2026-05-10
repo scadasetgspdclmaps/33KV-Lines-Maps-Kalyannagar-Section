@@ -426,9 +426,16 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
    the glow to medium-zoom and above via the .map-zoomed-far class on
    the map container.
 */
-.fv6-ug{filter:drop-shadow(0 0 3px #2196f3) drop-shadow(0 0 8px rgba(33,150,243,.5))!important;will-change:filter}
-.fv6-oh{filter:drop-shadow(0 0 3px #ff9800) drop-shadow(0 0 8px rgba(255,152,0,.5))!important;will-change:filter}
-.fv6-tr{filter:drop-shadow(0 0 3px #9c27b0) drop-shadow(0 0 8px rgba(156,39,176,.5))!important;will-change:filter}
+.fv6-ug{filter:drop-shadow(0 0 2px #2196f3)!important;will-change:auto}
+.fv6-oh{filter:drop-shadow(0 0 2px #ff9800)!important;will-change:auto}
+.fv6-tr{filter:drop-shadow(0 0 2px #9c27b0)!important;will-change:auto}
+/* Google-Maps-like pan mode: during drag/zoom and at zoomed-out levels, remove
+   expensive SVG filters + labels + CSS flow animation. This keeps the map moving
+   immediately, then restores the SCADA styling after interaction ends. */
+#map.is-interacting .fv6-ug,#map.is-interacting .fv6-oh,#map.is-interacting .fv6-tr,
+#map.map-zoomed-far .fv6-ug,#map.map-zoomed-far .fv6-oh,#map.map-zoomed-far .fv6-tr{filter:none!important}
+#map.is-interacting .pole-label,#map.is-interacting .ss-label{display:none!important}
+#map.map-zoomed-far .feeder-flow-overlay{display:none!important}
 
 /* During interactive pan/zoom, freeze GPU-heavy animations to keep frame rate up */
 #map.is-interacting .feeder-flow-overlay{animation-play-state:paused!important}
@@ -1031,7 +1038,7 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 <body>
 <div id="loader">
   <div class="ld-logo">TGSPDCL</div>
-  <div class="ld-sub">KALYANNAGAR SECTION · 33KV</div>
+  <div class="ld-sub">33KV SCADA GRID MAP</div>
   <div class="ld-bar"><div class="ld-fill" id="ldfill"></div></div>
 </div>
 
@@ -1303,8 +1310,8 @@ const map = L.map('map',{
   preferCanvas:false,
   zoomAnimation:true, zoomAnimationThreshold:4,
   fadeAnimation:true, markerZoomAnimation:true,
-  inertia:true, inertiaDeceleration:3500, inertiaMaxSpeed:Infinity,
-  scrollWheelZoom:true, wheelDebounceTime:24, wheelPxPerZoomLevel:80,
+  inertia:true, inertiaDeceleration:2200, inertiaMaxSpeed:1800, easeLinearity:0.22,
+  scrollWheelZoom:true, wheelDebounceTime:10, wheelPxPerZoomLevel:65,
   zoomSnap:0.25, zoomDelta:0.5,
   doubleClickZoom:true, keyboard:true, keyboardPanDelta:80,
 });
@@ -1324,8 +1331,8 @@ window.addEventListener('resize',()=>map.invalidateSize());
 // ── BASEMAPS ──
 const _tileOpts = {
   maxZoom:22, maxNativeZoom:19,
-  updateWhenIdle:true, updateWhenZooming:false,
-  keepBuffer:6, tileSize:256, crossOrigin:true,
+  updateWhenIdle:false, updateWhenZooming:true,
+  keepBuffer:4, tileSize:256, crossOrigin:true,
 };
 const _bmDefs = {
   dark:      ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{..._tileOpts,subdomains:'abcd'}],
@@ -3182,13 +3189,19 @@ function initParticleCanvas(){
   _pCanvas.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500';
   document.getElementById('map').appendChild(_pCanvas);
   window.addEventListener('resize',resizeParticleCanvas);
-  map.on('move zoom',resizeParticleCanvas);
+  map.on('moveend zoomend',resizeParticleCanvas);
   resizeParticleCanvas();
 }
 function resizeParticleCanvas(){
   if(!_pCanvas)return;
   const el=document.getElementById('map');
-  _pCanvas.width=el.offsetWidth;_pCanvas.height=el.offsetHeight;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=el.offsetWidth,h=el.offsetHeight;
+  if(_pCanvas.width===Math.round(w*dpr)&&_pCanvas.height===Math.round(h*dpr))return;
+  _pCanvas.width=Math.round(w*dpr);_pCanvas.height=Math.round(h*dpr);
+  _pCanvas.style.width=w+'px';_pCanvas.style.height=h+'px';
+  _pCtx=_pCanvas.getContext('2d');
+  _pCtx.setTransform(dpr,0,0,dpr,0,0);
 }
 
 function initParticles(){
@@ -3214,6 +3227,7 @@ function animateParticles(ts){
   if(ts-_pLastTime<33){_pRAF=requestAnimationFrame(animateParticles);return;}
   _pLastTime=ts;
   if(!_pCanvas||!_pCtx){_pCtx=_pCanvas?.getContext('2d');if(!_pCtx){_pRAF=requestAnimationFrame(animateParticles);return;}}
+  if(map.getContainer().classList.contains('is-interacting')){_pCtx.clearRect(0,0,_pCanvas.width,_pCanvas.height);_pRAF=requestAnimationFrame(animateParticles);return;}
   _pCtx.clearRect(0,0,_pCanvas.width,_pCanvas.height);
   const SPEED=0.004; // medium speed
   Object.entries(_particles).forEach(([fn,p])=>{
@@ -3880,7 +3894,7 @@ map.on('zoomend',syncLabels);
   const c=map.getContainer();
   let _intIdle=null;
   function on(){c.classList.add('is-interacting');clearTimeout(_intIdle);}
-  function off(){clearTimeout(_intIdle);_intIdle=setTimeout(()=>c.classList.remove('is-interacting'),140);}
+  function off(){clearTimeout(_intIdle);_intIdle=setTimeout(()=>c.classList.remove('is-interacting'),220);}
   map.on('movestart zoomstart dragstart',on);
   map.on('moveend zoomend dragend',off);
 })();
