@@ -419,10 +419,26 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 .edit-mode-point{filter:drop-shadow(0 0 7px rgba(0,200,255,.9))!important;cursor:crosshair!important;transition:filter .2s}
 
 
-/* ══ V6 NEON SCADA LINE GLOW ══ */
+/* ══ V6 NEON SCADA LINE GLOW ══
+   Performance note (09 May 2026): the drop-shadow filter is expensive
+   when applied to hundreds of polylines simultaneously — it forces the
+   browser to repaint each filtered element on every frame. We now scope
+   the glow to medium-zoom and above via the .map-zoomed-far class on
+   the map container.
+*/
 .fv6-ug{filter:drop-shadow(0 0 3px #2196f3) drop-shadow(0 0 8px rgba(33,150,243,.5))!important;will-change:filter}
 .fv6-oh{filter:drop-shadow(0 0 3px #ff9800) drop-shadow(0 0 8px rgba(255,152,0,.5))!important;will-change:filter}
 .fv6-tr{filter:drop-shadow(0 0 3px #9c27b0) drop-shadow(0 0 8px rgba(156,39,176,.5))!important;will-change:filter}
+
+/* During interactive pan/zoom, freeze GPU-heavy animations to keep frame rate up */
+#map.is-interacting .feeder-flow-overlay{animation-play-state:paused!important}
+#map.is-interacting .ss33-ring{animation-play-state:paused!important}
+#map.is-interacting .ss33-core{animation-play-state:paused!important}
+#map.is-interacting .eht-rect{animation-play-state:paused!important}
+#map.is-interacting .feeder-breakdown{animation-play-state:paused!important}
+
+
+
 @keyframes energy-flow-v6{to{stroke-dashoffset:-28}}
 .feeder-flow-overlay{stroke-dasharray:6 16!important;stroke-linecap:round!important;
   animation:energy-flow-v6 1.4s linear infinite!important;pointer-events:none!important;
@@ -666,6 +682,35 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 .hier-sec-body .fr-row:hover{background:#eff6ff;border-color:#93c5fd}
 .hier-sec-body .fr-bottom{padding-left:12px}
 
+/* ═════════════════════════════════════════════════════════════
+   "GRID" BASEMAP — tile-less cyberpunk background (09 May 2026)
+   Painted on the map container itself; no network tile loading.
+   ═════════════════════════════════════════════════════════════ */
+#map.grid-bm-on{
+  background:
+    /* dim grid lines */
+    linear-gradient(to right, rgba(64,128,255,.07) 1px, transparent 1px) 0 0/40px 40px,
+    linear-gradient(to bottom, rgba(64,128,255,.07) 1px, transparent 1px) 0 0/40px 40px,
+    /* atmospheric glows */
+    radial-gradient(circle at 18% 22%, rgba(64,80,255,.22), transparent 38%),
+    radial-gradient(circle at 82% 78%, rgba(192,72,255,.20), transparent 42%),
+    radial-gradient(circle at 50% 50%, rgba(0,200,255,.10), transparent 60%),
+    /* base */
+    linear-gradient(135deg, #050818 0%, #0c1024 45%, #1a0a2e 100%) !important;
+  background-attachment:fixed,fixed,fixed,fixed,fixed,fixed!important;
+}
+#map.grid-bm-on .leaflet-tile-pane{opacity:.0!important}
+#map.grid-bm-on::after{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:
+    radial-gradient(circle 1px at 23% 31%, rgba(0,255,200,.6), transparent 100%),
+    radial-gradient(circle 1px at 67% 14%, rgba(168,108,255,.55), transparent 100%),
+    radial-gradient(circle 1px at 41% 78%, rgba(64,200,255,.6), transparent 100%),
+    radial-gradient(circle 1px at 88% 56%, rgba(255,80,200,.55), transparent 100%),
+    radial-gradient(circle 1px at 12% 88%, rgba(0,255,255,.45), transparent 100%);
+}
+
+
 /* ══ FIREBASE SYNC STATUS ══ */
 #fbStatus{position:fixed;bottom:46px;left:50%;transform:translateX(-50%);z-index:1600;
   font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:5px 14px;
@@ -891,9 +936,44 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 /* SUBSTATION LIST */
 .ss-list{padding:4px 6px 12px}
+
+/* 3-level hierarchy headers (Division → Sub-Division → Section) */
+.ss-div-hd{
+  font-family:var(--mono);font-size:10px;color:#fff;letter-spacing:1.8px;
+  font-weight:800;padding:9px 12px;
+  background:linear-gradient(90deg,#1d4ed8,#3b82f6);
+  margin:8px 4px 2px;border-radius:7px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 2px 6px rgba(29,78,216,.2);
+}
+.ss-div-cnt{font-family:var(--mono);font-size:9px;background:rgba(255,255,255,.22);
+  color:#fff;padding:2px 9px;border-radius:9px;font-weight:700}
+
+.ss-sub-hd{
+  font-family:var(--mono);font-size:9px;color:#1d4ed8;letter-spacing:1.3px;
+  font-weight:700;padding:6px 10px 5px 16px;
+  background:#dbeafe;
+  margin:4px 6px 1px;border-radius:5px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-left:3px solid #3b82f6;
+}
+.ss-sub-cnt{font-family:var(--mono);font-size:8.5px;background:#fff;
+  color:#1d4ed8;padding:1px 7px;border-radius:7px;font-weight:700;border:1px solid #93c5fd}
+
+.ss-sec-hd{
+  font-family:var(--mono);font-size:8.5px;color:#475569;letter-spacing:1px;
+  font-weight:700;padding:4px 8px 4px 22px;
+  background:#f8fafc;
+  margin:2px 8px 1px;border-radius:4px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-left:2px solid #cbd5e1;
+}
+.ss-sec-cnt{font-family:var(--mono);font-size:8px;background:#e2e8f0;
+  color:#475569;padding:1px 6px;border-radius:6px;font-weight:700}
+
 .ss-row{
-  display:flex;align-items:center;gap:9px;padding:9px 11px;margin:3px 4px;
-  background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;
+  display:flex;align-items:center;gap:9px;padding:8px 11px;margin:2px 10px 2px 24px;
+  background:#fff;border:1px solid #e2e8f0;border-radius:8px;
   cursor:pointer;transition:all .18s;
 }
 .ss-row:hover{background:#eff6ff;border-color:#93c5fd;transform:translateX(2px);
@@ -1104,6 +1184,7 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 
 <div id="bm-tabs">
   <div class="bm-tab active" id="bm-dark"      onclick="setBM('dark')">🌑 DARK</div>
+  <div class="bm-tab"        id="bm-grid"      onclick="setBM('grid')">⚡ GRID</div>
   <div class="bm-tab"        id="bm-satellite" onclick="setBM('satellite')">🛰 SATELLITE</div>
   <div class="bm-tab"        id="bm-street"    onclick="setBM('street')">🗺 STREET</div>
   <div class="bm-tab"        id="bm-google"    onclick="setBM('google')">📍 GOOGLE</div>
@@ -1254,13 +1335,56 @@ const _bmDefs = {
   google:    ['https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{..._tileOpts}],
 };
 const BM={};
-function getBM(n){if(!BM[n])BM[n]=L.tileLayer(_bmDefs[n][0],_bmDefs[n][1]);return BM[n];}
+
+// ─────────────────────────────────────────────────────────────
+// "GRID" — a tile-less basemap (added 09 May 2026 per Naresh)
+// Pure CSS gradient + radial halos painted on the map container.
+// Zero network IO, zero tile rendering → instant pan/zoom.
+// Uses a "blank" tile layer for Leaflet's plumbing while the real
+// background is painted on the map container itself.
+// ─────────────────────────────────────────────────────────────
+const _GRID_BG_CSS = `
+  radial-gradient(circle at 18% 22%, rgba(64,80,255,.18), transparent 38%),
+  radial-gradient(circle at 82% 78%, rgba(192,72,255,.18), transparent 42%),
+  radial-gradient(circle at 50% 50%, rgba(0,200,255,.08), transparent 58%),
+  linear-gradient(135deg, #050818 0%, #0c1024 45%, #1a0a2e 100%)
+`;
+function _gridBlankTileUrl(){
+  // 1x1 transparent PNG so Leaflet's tile plumbing has something to "load"
+  return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=';
+}
+function _ensureGridBackground(on){
+  const c=map.getContainer();
+  if(on){
+    c.classList.add('grid-bm-on');
+  }else{
+    c.classList.remove('grid-bm-on');
+  }
+}
+
+function getBM(n){
+  if(BM[n])return BM[n];
+  if(n==='grid'){
+    // Blank tile layer that loads instantly; visuals come from CSS
+    BM[n]=L.tileLayer(_gridBlankTileUrl(),{
+      maxZoom:22, maxNativeZoom:22, tileSize:256,
+      keepBuffer:1, updateWhenIdle:true, updateWhenZooming:false,
+      attribution:''
+    });
+  }else if(_bmDefs[n]){
+    BM[n]=L.tileLayer(_bmDefs[n][0],_bmDefs[n][1]);
+  }
+  return BM[n];
+}
 let curBM='dark'; getBM('dark').addTo(map);
 setTimeout(()=>{getBM('google');getBM('satellite');},2000);
 
 function setBM(name){
-  if(!_bmDefs[name])return;
-  map.removeLayer(getBM(curBM));getBM(name).addTo(map);getBM(name).bringToBack();
+  if(name!=='grid'&&!_bmDefs[name])return;
+  map.removeLayer(getBM(curBM));
+  _ensureGridBackground(name==='grid');
+  getBM(name).addTo(map);
+  if(name!=='grid'&&getBM(name).bringToBack)getBM(name).bringToBack();
   curBM=name;
   document.querySelectorAll('.bmbtn,.bm-tab').forEach(b=>b.classList.remove('active'));
   const el=document.getElementById('bm-'+name);if(el)el.classList.add('active');
@@ -1314,6 +1438,32 @@ function diamondIcon(color){
   return L.divIcon({className:'',html:s,iconSize:[11,11],iconAnchor:[5,5]});
 }
 
+// ─────────────────────────────────────────────────────────────
+// SS LOCATION SUPPRESSION (per Naresh, 09 May 2026)
+// AB switches that sit at the same physical location as a 33/11KV
+// substation are redundant — the AB switch is INSIDE the SS premises.
+// We bucket SS coords at ~30 m resolution and skip AB rendering when
+// a bucket contains an SS.
+// ─────────────────────────────────────────────────────────────
+const _ssCoordBuckets=new Set();
+function _ssBucketKey(lat,lng){
+  // ~30 m resolution = 4 decimal places (≈11 m at the equator → ~30 m at 17°N)
+  return Number(lat).toFixed(4)+','+Number(lng).toFixed(4);
+}
+function _registerSSCoord(lat,lng){
+  if(typeof lat!=='number'||typeof lng!=='number')return;
+  // Register the bucket and its 8 neighbours so we tolerate small offsets
+  const la=Math.round(lat*10000);
+  const ln=Math.round(lng*10000);
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    _ssCoordBuckets.add(((la+dy)/10000).toFixed(4)+','+((ln+dx)/10000).toFixed(4));
+  }
+}
+function isABAtSSLocation(lat,lng){
+  if(typeof lat!=='number'||typeof lng!=='number')return false;
+  return _ssCoordBuckets.has(_ssBucketKey(lat,lng));
+}
+
 // Cable color: UG=blue, OH=orange.
 // Transition rule (per Naresh, 09 May 2026):
 //   "UG TO OH" → ORANGE (destination is OH)
@@ -1338,6 +1488,8 @@ function renderStaticSS(){
     const key=ssKey(ss.name, ss.lat, ss.lon);
     if(staticSSKeyTracker.has(key))return;
     staticSSKeyTracker.add(key);
+    // Register this SS coordinate so AB switches at the same spot get suppressed
+    _registerSSCoord(ss.lat,ss.lon);
 
     const h=`<div class="ss33-wrap"><div class="ss33-ring"></div><div class="ss33-core"><span class="ss33-bolt">⚡</span></div></div>`;
     const layer=L.marker([ss.lat,ss.lon],{zIndexOffset:1000,icon:L.divIcon({className:'',html:h,iconSize:[36,36],iconAnchor:[18,18]})});
@@ -2241,49 +2393,64 @@ function renderSSList(query){
       return blob.includes(q);
     });
   }
-  // Sort by division then name
-  combined.sort((a,b)=>{
-    const da=String(a.division||'ZZ');
-    const db=String(b.division||'ZZ');
-    if(da!==db)return da.localeCompare(db);
-    return String(a.name||'').localeCompare(String(b.name||''));
-  });
 
   _ssListData=combined;
+  // Index every entry so the click handler can look it up
+  combined.forEach((s,idx)=>{ s._idx=idx; });
 
-  // Update counter
+  // Counter
   const ssCntEl=document.getElementById('ltab-cnt-ss');
   if(ssCntEl)ssCntEl.textContent=ss33.length+ehts.length;
 
   if(!combined.length){
     list.innerHTML='<div class="ss-empty">No substations match.</div>';return;
   }
-  // Group by division
-  const byDiv={};
-  combined.forEach((s,idx)=>{
-    s._idx=idx;
-    const k=s.division||'OTHER';
-    if(!byDiv[k])byDiv[k]=[];
-    byDiv[k].push(s);
+
+  // ── 3-LEVEL HIERARCHY (per Naresh, 09 May 2026) ──
+  // Division → Sub-Division → Section → [SS rows]
+  const tree={};
+  combined.forEach(s=>{
+    const div=String(s.division||'OTHER').trim();
+    const sub=String(s.sub_div||'—').trim();
+    const sec=String(s.section||'—').trim();
+    if(!tree[div])tree[div]={};
+    if(!tree[div][sub])tree[div][sub]={};
+    if(!tree[div][sub][sec])tree[div][sub][sec]=[];
+    tree[div][sub][sec].push(s);
   });
 
   let html='';
-  Object.keys(byDiv).sort().forEach(div=>{
-    html+=`<div style="font-family:var(--mono);font-size:9px;color:#1d4ed8;letter-spacing:1.5px;font-weight:700;padding:8px 12px 4px;background:#eff6ff;margin:6px 4px 2px;border-radius:6px">${div.toUpperCase()} <span style="color:#94a3b8;font-weight:400">(${byDiv[div].length})</span></div>`;
-    byDiv[div].forEach(s=>{
-      const isEHT=s._type==='eht';
-      const shortName=s.name.replace(/33\/11KV\s?/i,'').replace(/^\d+\s*KV\s*/i,'').replace(/\s?SS$/i,'').trim();
-      const meta=isEHT
-        ? (s.feeders?s.feeders+' feeders · '+s.ptr_cap+' MVA':'EHT')
-        : (s.section||'');
-      html+=`
-        <div class="ss-row ${isEHT?'ss-eht':''}" onclick="flyToSSByIdx(${s._idx})">
-          <div class="ss-row-ic">${isEHT?'⚡EHT':'⚡'}</div>
-          <div class="ss-row-body">
-            <div class="ss-row-name">${shortName}</div>
-            <div class="ss-row-meta">${meta}</div>
-          </div>
-        </div>`;
+  Object.keys(tree).sort().forEach(div=>{
+    const subs=tree[div];
+    let divCount=0;
+    Object.values(subs).forEach(secs=>Object.values(secs).forEach(arr=>divCount+=arr.length));
+    html+=`<div class="ss-div-hd">⬢ ${div.toUpperCase()} <span class="ss-div-cnt">${divCount}</span></div>`;
+    Object.keys(subs).sort().forEach(sub=>{
+      const secs=subs[sub];
+      let subCount=0;
+      Object.values(secs).forEach(arr=>subCount+=arr.length);
+      const subLabel=sub==='—'?'':sub;
+      html+=`<div class="ss-sub-hd">▸ ${subLabel.toUpperCase()||'(no sub-division)'} <span class="ss-sub-cnt">${subCount}</span></div>`;
+      Object.keys(secs).sort().forEach(sec=>{
+        const arr=secs[sec];
+        const secLabel=sec==='—'?'':sec;
+        html+=`<div class="ss-sec-hd">▪ ${secLabel.toUpperCase()||'(no section)'} <span class="ss-sec-cnt">${arr.length}</span></div>`;
+        arr.forEach(s=>{
+          const isEHT=s._type==='eht';
+          const shortName=s.name.replace(/33\/11KV\s?/i,'').replace(/^\d+\s*KV\s*/i,'').replace(/\s?SS$/i,'').trim();
+          const meta=isEHT
+            ? (s.feeders?s.feeders+' feeders · '+(s.ptr_cap||'')+' MVA':'EHT')
+            : (s.section||'');
+          html+=`
+            <div class="ss-row ${isEHT?'ss-eht':''}" onclick="flyToSSByIdx(${s._idx})">
+              <div class="ss-row-ic">${isEHT?'⚡EHT':'⚡'}</div>
+              <div class="ss-row-body">
+                <div class="ss-row-name">${shortName}</div>
+                <div class="ss-row-meta">${meta}</div>
+              </div>
+            </div>`;
+        });
+      });
     });
   });
   list.innerHTML=html;
@@ -2818,9 +2985,15 @@ setTimeout(()=>dismissLoader(),5000);
 function syncLabels(){
   const z=map.getZoom();
   const showPoleLabels=z>=17;const showSSLabels=z>=13;
-  // Hide energy-flow overlays only at very far-out zooms. At z>=10 the flow
-  // animation is the visual signature of the map — don't kill it prematurely.
-  const showFlow=z>=10;
+  const showFlow=z>=13;
+
+  // Toggle the "zoomed-far" class on the map container — when zoomed out,
+  // we strip glow filters & flow animations from every polyline at once
+  // via CSS rules. This is the single biggest perf lever for smoothness.
+  const mapEl=map.getContainer();
+  if(z<13)mapEl.classList.add('map-zoomed-far');
+  else mapEl.classList.remove('map-zoomed-far');
+
   allLayers.forEach(item=>{
     if(item.reg.type.startsWith('ss')||item.reg.type.startsWith('eht')){
       if(item.layer.getTooltip){const tip=item.layer.getTooltip();if(tip){if(showSSLabels&&map.hasLayer(item.layer))item.layer.openTooltip&&item.layer.openTooltip();else item.layer.closeTooltip&&item.layer.closeTooltip();}}
@@ -2829,10 +3002,9 @@ function syncLabels(){
       if(showPoleLabels&&map.hasLayer(item.layer)){if(!item.layer.getTooltip())item.layer.bindTooltip(item.poleNo,{permanent:true,direction:'right',className:'pole-label',offset:[6,0]});}
       else{if(item.layer.getTooltip())item.layer.unbindTooltip();}
     }
-    // Manage flow animation by zoom AND feeder status
+    // Flow animation: only when zoomed in enough AND feeder is live
     if(item.layer.flowLayer){
       const cs=feederStatus[item.feederName]||'live';
-      // Flow visible ONLY when: zoomed in enough AND feeder is live AND line is on map
       const shouldShow=showFlow&&cs==='live'&&map.hasLayer(item.layer);
       safelyManageClass(item.layer.flowLayer,'hidden-flow',!shouldShow);
     }
@@ -3702,6 +3874,16 @@ function flyToSS(ss){
 })();
 
 map.on('zoomend',syncLabels);
+
+// Smoothness: pause animations during pan/zoom so each frame is cheap
+(function(){
+  const c=map.getContainer();
+  let _intIdle=null;
+  function on(){c.classList.add('is-interacting');clearTimeout(_intIdle);}
+  function off(){clearTimeout(_intIdle);_intIdle=setTimeout(()=>c.classList.remove('is-interacting'),140);}
+  map.on('movestart zoomstart dragstart',on);
+  map.on('moveend zoomend dragend',off);
+})();
 document.getElementById('loader').addEventListener('click',dismissLoader);
 
 // ══════════════════════════════════════════════════
@@ -3830,16 +4012,14 @@ function _drawSegment(feederName, coords, typeRaw, regLine){
   lineLayer.hitLayer=L.polyline(coords,{color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false,pane:'linePane'});
 
   bindFeederLinePopup(lineLayer,lineFeat,regLine,feederName,cable);
-  lineLayer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:3});});
+  // Lightweight hover — opacity-only changes are GPU-cheap; weight changes force SVG repaint
+  lineLayer.on('mouseover',e=>{e.target.setStyle({opacity:1});});
   lineLayer.on('mouseout',e=>{
     const iF=focusedFeeder&&focusedFeeder!==feederName;
     const st=feederStatus[feederName]||'live';
     e.target.setStyle({
-      color: st==='breakdown' ? '#ff1744' : color,
-      weight: st==='breakdown' ? 7 : 5.8,
       opacity: st==='idle' ? 0.55 : (iF?.15:1)
     });
-    if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:2.2});
   });
 
   lineLayer._editId=editLayerCounter++;lineLayer.feature=lineFeat;
@@ -3978,7 +4158,19 @@ function renderUploadedRows(rows,sourceFileName){
       };
       const feat={type:'Feature',geometry:{type:'Point',coordinates:[p.lng,p.lat]},properties:props};
       let layer,regType='points';
-      if(isAB){
+
+      // ── AB SWITCH SUPPRESSION (per Naresh, 09 May 2026) ──
+      // If this AB switch sits inside / right next to a 33/11KV SS, don't
+      // render the AB marker — the SS marker already represents the location
+      // and the switch is part of the SS premises. We still log it as a
+      // 'points' record so the feeder line passes through correctly, just
+      // without the visible diamond marker.
+      let _suppressAB=false;
+      if(isAB&&isABAtSSLocation(p.lat,p.lng)){
+        _suppressAB=true;
+      }
+
+      if(isAB&&!_suppressAB){
         regType='ab';
         // Distinctive AB Switch icon — orange diamond with central bar
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',
@@ -4110,52 +4302,63 @@ function refreshSectionDeleteDropdown(){
   const sel=document.getElementById('dfSectionDel');
   if(!sel)return;
   const cur=sel.value;
-  // Collect every section that has at least one UPLOADED feeder
-  const sections=new Set();
+  // Collect every (division, sub-division, section) triple that has at least
+  // one UPLOADED feeder. Using the full hierarchy as the key lets us show
+  // sections from different divisions even if they share names.
+  const sectionMap={}; // key="DIV|SUB|SEC" → {div,sub,sec,count,fns:[]}
   Object.values(uploadedFiles||{}).forEach(f=>{
     if(!f||!f.feederName)return;
     const fn=f.feederName;
     const h=feederHierarchyMap[fn]||{};
     const m=feederMetaMap[fn]||{};
-    const sec=(h.section||m.sec||feederSectionMap[fn]||'').trim();
-    if(sec)sections.add(sec);
+    const div=(h.division||m.div||'').toString().trim();
+    const sub=(h.sub_division||m.sub||'').toString().trim();
+    const sec=(h.section||m.sec||feederSectionMap[fn]||'').toString().trim();
+    if(!sec)return;   // only sections with names are deletable
+    const key=div+'|'+sub+'|'+sec;
+    if(!sectionMap[key])sectionMap[key]={div,sub,sec,count:0,fns:[]};
+    sectionMap[key].count++;
+    sectionMap[key].fns.push(fn);
   });
-  sel.innerHTML='<option value="">— pick section —</option>';
-  [...sections].sort().forEach(s=>{
-    // Count feeders in this section
-    let cnt=0;
-    Object.values(uploadedFiles||{}).forEach(f=>{
-      if(!f||!f.feederName)return;
-      const fn=f.feederName;
-      const h=feederHierarchyMap[fn]||{};
-      const m=feederMetaMap[fn]||{};
-      const sec=(h.section||m.sec||feederSectionMap[fn]||'').trim();
-      if(sec===s)cnt++;
-    });
+
+  sel.innerHTML='<option value="">— pick section to delete —</option>';
+  const entries=Object.values(sectionMap).sort((a,b)=>{
+    if(a.div!==b.div)return a.div.localeCompare(b.div);
+    if(a.sub!==b.sub)return a.sub.localeCompare(b.sub);
+    return a.sec.localeCompare(b.sec);
+  });
+  entries.forEach(e=>{
     const o=document.createElement('option');
-    o.value=s;
-    o.textContent=s+' ('+cnt+' feeder'+(cnt===1?'':'s')+')';
+    // value is the FULL hierarchy key so we delete exactly the right group
+    o.value=e.div+'|'+e.sub+'|'+e.sec;
+    // Display: just the section name (per Naresh) with division prefix for disambiguation
+    const divShort=e.div?e.div.replace(/\s*DIVISION$/i,'').substring(0,14):'';
+    o.textContent=divShort?(`${e.sec.toUpperCase()}  —  ${divShort}`):e.sec.toUpperCase();
+    o.dataset.count=e.count;
     sel.appendChild(o);
   });
-  if(cur&&[...sections].includes(cur))sel.value=cur;
+  if(cur&&entries.some(e=>(e.div+'|'+e.sub+'|'+e.sec)===cur))sel.value=cur;
 }
 
 function deleteWholeSection(){
   const sel=document.getElementById('dfSectionDel');
-  const section=sel?.value;
-  if(!section){toast('Pick a section first',2000);return;}
-  // Find all feeders in this section
+  const key=sel?.value;
+  if(!key){toast('Pick a section first',2000);return;}
+  const [div,sub,sec]=key.split('|');
+  // Find every uploaded feeder matching this exact hierarchy triple
   const targets=[];
-  Object.entries(uploadedFiles||{}).forEach(([key,f])=>{
+  Object.entries(uploadedFiles||{}).forEach(([fkey,f])=>{
     if(!f||!f.feederName)return;
     const fn=f.feederName;
     const h=feederHierarchyMap[fn]||{};
     const m=feederMetaMap[fn]||{};
-    const sec=(h.section||m.sec||feederSectionMap[fn]||'').trim();
-    if(sec===section)targets.push({key,fn});
+    const fDiv=(h.division||m.div||'').toString().trim();
+    const fSub=(h.sub_division||m.sub||'').toString().trim();
+    const fSec=(h.section||m.sec||feederSectionMap[fn]||'').toString().trim();
+    if(fDiv===div&&fSub===sub&&fSec===sec)targets.push({key:fkey,fn});
   });
-  if(!targets.length){toast('No feeders found in '+section,2000);return;}
-  if(!confirm(`Delete ALL ${targets.length} feeder(s) in section "${section}"?\n\nThis removes them from the map, the side panel, and Firebase.\nThis cannot be undone.`))return;
+  if(!targets.length){toast('No feeders found in '+sec,2000);return;}
+  if(!confirm(`Delete the entire section "${sec}"?\n\nThis will remove ${targets.length} feeder(s) from:\n  • the map\n  • the side panel\n  • Firebase\n\nThis cannot be undone.`))return;
   let n=0;
   targets.forEach(({key,fn})=>{
     if(focusedFeeder===fn)exitFocusedFeeder();
@@ -4174,7 +4377,7 @@ function deleteWholeSection(){
   updateCounts();
   if(typeof buildHierFilters==='function')buildHierFilters();
   refreshSectionDeleteDropdown();
-  toast(`🗑 Deleted ${n} feeder(s) in section "${section}"`,3500);
+  toast(`🗑 Deleted section "${sec}" — ${n} feeder(s) removed`,3500);
 }
 /* =========================================================
    FIREBASE INTEGRATION — TGSPDCL KALYANNAGAR GIS
