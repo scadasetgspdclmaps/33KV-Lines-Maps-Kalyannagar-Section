@@ -4171,7 +4171,7 @@ function handleFileUpload(input){
   input.value='';
   const reader=new FileReader();
   const isXLSX=/\.xlsx?$/i.test(file.name);
-  reader.onload=async function(e){
+  reader.onload=function(e){
     let rows=[];
     if(isXLSX){
       try{
@@ -4208,8 +4208,7 @@ function handleFileUpload(input){
       toast('⚠ Render error: '+err.message,3500);
     }
     if(typeof fbSaveUploadedFeeder==='function'){
-      const savedOk = await fbSaveUploadedFeeder(key, fn, rows, file.name);
-      if(savedOk){ toast('☁️ Saved to cloud — will stay after refresh',2500); }
+      fbSaveUploadedFeeder(key, fn, rows, file.name).catch(()=>{});
     }
   };
   if(isXLSX)reader.readAsArrayBuffer(file);
@@ -4560,13 +4559,20 @@ async function runUploadedFeeder(){
   const key=sel.value;
   if(!key||!uploadedFiles[key]){toast('Select an uploaded file first');return;}
   const {rows,fileName,feederName,section}=uploadedFiles[key];
-  renderUploadedRows(rows,fileName);
 
-  // Save to Firebase permanently
-  if(typeof fbSaveUploadedFeeder==='function'){
-    toast('☁️ Saving uploaded feeder to cloud…',1800);
-    const savedOk = await fbSaveUploadedFeeder(key, feederName, rows, fileName);
-    if(savedOk){ toast('☁️ Saved — refresh safe',2500); }
+  // IMPORTANT: Cloud first, map second.
+  // This prevents the common bug where the new Excel is visible now,
+  // but refresh brings back the previous Firebase copy.
+  try{
+    if(typeof fbSaveUploadedFeeder==='function'){
+      toast('☁️ Saving latest file to cloud…',1800);
+      await fbSaveUploadedFeeder(key, feederName, rows, fileName);
+    }
+    renderUploadedRows(rows,fileName);
+    toast('✅ Latest file saved and rendered',2500);
+  }catch(err){
+    console.error('RUN save/render error:',err);
+    toast('⚠️ Cloud save failed — refresh may restore old data',5000);
   }
 }
 
@@ -4587,32 +4593,42 @@ async function deleteUploadedFeeder(){
   const key=sel.value;
   if(!key||!uploadedFiles[key]){toast('Select a file to delete');return;}
   const {feederName}=uploadedFiles[key];
-  if(!confirm('Delete feeder "'+feederName+'" from map and Firebase?'))return;
-  // Local removal first — feels instant to the user.
+  if(!confirm('Delete uploaded feeder "'+feederName+'" permanently from map and cloud?'))return;
+
+  // Local removal first — feels instant.
   removeFeederLayers(feederName);
   feederNames.delete(feederName);
-  delete feederState[feederName];delete feederSectionMap[feederName];delete feederHierarchyMap[feederName];
+  delete feederState[feederName];
+  delete feederSectionMap[feederName];
+  delete feederHierarchyMap[feederName];
+  delete feederMetaMap[feederName];
   delete uploadedFiles[key];
   sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
   sel.value='';
   buildFeederChecks();updateCounts();
+  if(typeof buildHierFilters==='function')buildHierFilters();
   if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
-  // Firebase deletion — awaited so the toast doesn't lie. Tombstone written
-  // FIRST so even if the actual DELETE is interrupted by a refresh, the
-  // restore loop will still skip this feeder.
-  toast('🗑 Deleting from cloud…',1500);
-  const ok=await fbDelete('uploadedFeeders/'+safeFbKey(key), key);
-  toast(ok ? '🗑 Deleted: '+feederName.substring(0,25) : '⚠ Delete may not have synced — check connection',3000);
+
+  // Cloud removal — delete data + remove from ACTIVE restore list.
+  toast('🗑 Deleting from cloud…',1800);
+  const ok=await fbDeleteUploadedKey(key);
+  toast(ok ? '🗑 Deleted permanently: '+feederName.substring(0,25) : '⚠ Delete may not have synced — check connection',3500);
 }
 
 async function deleteFeederFromMap(fn,e){
   if(e)e.stopPropagation();
-  if(!confirm('Delete feeder "'+fn+'" from map?'))return;
+  if(!confirm('Delete feeder "'+fn+'" from map and cloud?'))return;
   if(focusedFeeder===fn)exitFocusedFeeder();
-  // Local removal first.
-  removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];delete feederSectionMap[fn];delete feederHierarchyMap[fn];
-  // Collect every Firebase key that maps to this feeder name (usually one,
-  // but a file can be re-uploaded under a different name).
+
+  // Local removal.
+  removeFeederLayers(fn);
+  feederNames.delete(fn);
+  delete feederState[fn];
+  delete feederSectionMap[fn];
+  delete feederHierarchyMap[fn];
+  delete feederMetaMap[fn];
+
+  // Collect every uploaded file key that maps to this feeder name.
   const keys=[];
   Object.keys(uploadedFiles).forEach(k=>{
     if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){
@@ -4621,13 +4637,15 @@ async function deleteFeederFromMap(fn,e){
       document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove();
     }
   });
+
   buildFeederChecks();updateCounts();
+  if(typeof buildHierFilters==='function')buildHierFilters();
   if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
-  // Firebase deletion (awaited, with tombstones).
-  toast('🗑 Deleting from cloud…',1500);
-  const results=await Promise.all(keys.map(k=>fbDelete('uploadedFeeders/'+safeFbKey(k), k)));
+
+  toast('🗑 Deleting from cloud…',1800);
+  const results=await Promise.all(keys.map(k=>fbDeleteUploadedKey(k)));
   const allOk=results.every(Boolean);
-  toast(allOk ? '🗑 Deleted: '+fn.substring(0,25) : '⚠ Delete may not have synced',3000);
+  toast(allOk ? '🗑 Deleted permanently: '+fn.substring(0,25) : '⚠ Delete may not have synced',3500);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -4716,7 +4734,7 @@ async function deleteWholeSection(){
   // Firebase deletes — awaited with tombstones so a refresh can't undo this.
   toast(`🗑 Deleting ${n} feeder(s) from cloud…`,2000);
   const results=await Promise.all(targets.map(({key})=>
-    fbDelete('uploadedFeeders/'+safeFbKey(key), key)
+    fbDeleteUploadedKey(key)
   ));
   const allOk=results.every(Boolean);
   toast(allOk
@@ -4832,6 +4850,61 @@ async function fbGetTombstones(){
   }
 }
 
+// ACTIVE UPLOAD LIST
+// Only keys present here are restored after refresh. This prevents old legacy
+// uploadedFeeders already sitting in Firebase from coming back again.
+async function fbGetActiveUploadKeys(){
+  try{
+    const res=await fetch(`${FIREBASE_URL}/activeUploadedFeeders.json`);
+    if(!res.ok)return new Set();
+    const data=await res.json();
+    if(!data)return new Set();
+    return new Set(Object.keys(data));
+  }catch(e){
+    console.error('Active upload list read error:',e);
+    return new Set();
+  }
+}
+
+async function fbMarkActiveUpload(key, meta){
+  const sk=safeFbKey(key);
+  const payload=Object.assign({active:true,updatedAt:new Date().toISOString()}, meta||{});
+  const res=await fetch(`${FIREBASE_URL}/activeUploadedFeeders/${sk}.json`,{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
+  });
+  if(!res.ok)throw new Error('Active upload mark failed HTTP '+res.status);
+  return true;
+}
+
+async function fbUnmarkActiveUpload(key){
+  const sk=safeFbKey(key);
+  await fetch(`${FIREBASE_URL}/activeUploadedFeeders/${sk}.json`,{method:'DELETE'}).catch(()=>{});
+}
+
+async function fbDeleteUploadedKey(key){
+  const sk=safeFbKey(key);
+  showFbStatus('saving');
+  try{
+    // tombstone first, so restore skips this even if delete is interrupted
+    await fetch(`${FIREBASE_URL}/deletedFeeders/${sk}.json`,{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({deletedAt:new Date().toISOString(),key:String(key)})
+    });
+    // remove from active restore list
+    await fetch(`${FIREBASE_URL}/activeUploadedFeeders/${sk}.json`,{method:'DELETE'}).catch(()=>{});
+    // delete main uploaded copy
+    const res=await fetch(`${FIREBASE_URL}/uploadedFeeders/${sk}.json`,{method:'DELETE'});
+    if(!res.ok&&res.status!==404)throw new Error('HTTP '+res.status);
+    showFbStatus('saved');
+    return true;
+  }catch(err){
+    console.error('Firebase uploaded delete error:',err);
+    showFbStatus('error');
+    return false;
+  }
+}
+
+
 // ── Save feeder status ──
 function fbSaveFeederStatus(fn,status){
   if(status==='live'){
@@ -4859,66 +4932,65 @@ function fbLoadFeederStatuses(){
 // Rows stored as a single escaped JSON string to avoid ALL key sanitization issues
 async function fbSaveUploadedFeeder(key,feederName,rows,fileName){
   showFbStatus('saving');
-  const safeKey=safeFbKey(key);
-  // Clear any existing tombstone for this key BEFORE saving.
-  // This allows a deleted feeder to be uploaded again and then restored after refresh.
+  const sk=safeFbKey(key);
   try{
-    await fetch(`${FIREBASE_URL}/deletedFeeders/${safeKey}.json`,{method:'DELETE'});
-  }catch(e){
-    console.warn('Could not clear deletedFeeders tombstone:',safeKey,e);
-  }
-  try{
-    // Convert every value to string to preserve original uploaded columns safely.
-    // IMPORTANT: Do not rename division/sub_division/section/pole_number here.
-    const cleanRows=(rows||[]).map(row=>{
+    // Re-upload means it is no longer deleted.
+    await fetch(`${FIREBASE_URL}/deletedFeeders/${sk}.json`,{method:'DELETE'}).catch(()=>{});
+
+    // Convert every value to string to ensure clean JSON and preserve pole_number,
+    // division, sub_division, section exactly as your Excel has them.
+    const cleanRows=rows.map(row=>{
       const r={};
-      Object.keys(row||{}).forEach(k=>{
+      Object.keys(row).forEach(k=>{
         let v=row[k];
         if(v===undefined||v===null)v='';
         else if(v instanceof Date)v=v.toISOString();
         else v=String(v);
-        r[String(k).trim()]=v;
+        r[String(k)]=v;
       });
       return r;
     });
+
     const payload={
-      feederName:String(feederName||''),
-      fileName:String(fileName||key||''),
+      feederName:String(feederName),
+      fileName:String(fileName||key),
       savedAt:new Date().toISOString(),
+      updatedAt:new Date().toISOString(),
       rowCount:cleanRows.length,
-      rowsJson:JSON.stringify(cleanRows)
+      rowsJson:JSON.stringify(cleanRows),
+      deleted:false
     };
-    const path='uploadedFeeders/'+safeKey;
+    const path='uploadedFeeders/'+sk;
     const body=JSON.stringify(payload);
     if(body.length>5*1024*1024){
       console.warn('Large Firebase write:',(body.length/1024/1024).toFixed(2),'MB — file:',fileName);
     }
-    const res=await fetch(FIREBASE_URL+'/'+path+'.json',{
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:body
+
+    // Hard-overwrite the old copy at the SAME key.
+    const res=await fetch(`${FIREBASE_URL}/${path}.json`,{
+      method:'PUT',headers:{'Content-Type':'application/json'},body
     });
     if(!res.ok){
       const t=await res.text();
       if(res.status===401||/permission|denied|unauthor/i.test(t)){
-        const msg='Firebase rules EXPIRED or DENIED. Open Firebase Console → Realtime Database → Rules → set ".read":true and ".write":true → Publish.';
-        console.error('═══════════════════════════════════════════════════');
-        console.error('  FIREBASE PERMISSION DENIED');
-        console.error('  '+msg);
-        console.error('  Server response:',t);
-        console.error('═══════════════════════════════════════════════════');
-        throw new Error(msg);
+        throw new Error('PERMISSION DENIED — Firebase rules expired/denied');
       }
-      throw new Error('HTTP '+res.status+' '+t.substring(0,180));
+      throw new Error('HTTP '+res.status+': '+t.substring(0,100));
     }
+
+    // Mark as ACTIVE only after the main save succeeds.
+    // Refresh will restore ONLY activeUploadedFeeders, not every old legacy upload.
+    await fbMarkActiveUpload(key,{feederName:String(feederName),fileName:String(fileName||key),rowCount:cleanRows.length});
+
+    toast('☁️ '+String(feederName).substring(0,30)+' saved to Cloud',2500);
     showFbStatus('saved');
     console.log('Firebase save OK:',path,'rows:',cleanRows.length);
     return true;
   }catch(err){
     console.error('Firebase save error:',err.message);
     showFbStatus('error');
-    toast('⚠️ CLOUD SAVE FAILED — '+err.message,6500);
-    return false;
+    toast('⚠️ CLOUD SAVE FAILED — '+err.message,6000);
+    throw err;
   }
 }
 
@@ -4944,12 +5016,9 @@ function forceSyncAllToFirebase(){
     const f=uploadedFiles[k];
     if(!f||!f.rows){step();return;}
     try{
-      // Re-use the standard save path and count only confirmed saves.
-      fbSaveUploadedFeeder(k, f.feederName, f.rows, f.fileName||k).then(saved=>{
-        if(saved)ok++; else fail++;
-        setTimeout(step,250);
-      });
-      return;
+      // Re-use the standard save path; track success via setTimeout
+      fbSaveUploadedFeeder(k, f.feederName, f.rows, f.fileName||k);
+      ok++;
     }catch(e){fail++;console.error('Force-sync failed for',k,e);}
     setTimeout(step,250); // pace at ~4 writes/sec
   }
@@ -4959,12 +5028,18 @@ function forceSyncAllToFirebase(){
 // ── Load all uploaded feeders on startup ──
 async function fbLoadUploadedFiles(){
   showFbStatus('loading');
-  // ── TOMBSTONE CHECK (added 21 May 2026) ──
-  // Anything in deletedFeeders/ stays deleted, even if its data is still
-  // sitting in uploadedFeeders/ because an earlier delete didn't complete.
+
   const tombstones=await fbGetTombstones();
-  if(tombstones.size>0){
-    console.log('Skipping',tombstones.size,'tombstoned feeder(s):',[...tombstones]);
+  const activeKeys=await fbGetActiveUploadKeys();
+
+  // Critical fix:
+  // Do NOT restore every legacy object in uploadedFeeders. Your Firebase already
+  // contains many old uploaded feeder files. Restore only those explicitly marked
+  // active by the new save path.
+  if(activeKeys.size===0){
+    console.log('No activeUploadedFeeders found — skipping legacy uploadedFeeders restore.');
+    showFbStatus('none');
+    return;
   }
 
   try{
@@ -4972,81 +5047,71 @@ async function fbLoadUploadedFiles(){
     if(!res.ok){
       const t=await res.text();
       if(res.status===401||/permission|denied|unauthor/i.test(t)){
-        console.error('═══════════════════════════════════════════════════');
-        console.error('  FIREBASE READ PERMISSION DENIED (401)');
-        console.error('  Open Firebase Console → Realtime Database → Rules');
-        console.error('  Set ".read":true and ".write":true → Publish');
-        console.error('═══════════════════════════════════════════════════');
-        toast('⚠️ Cloud restore failed — Firebase rules EXPIRED. See console (F12) for fix.',7000);
+        console.error('Firebase read permission denied. Check Realtime Database rules.');
+        toast('⚠️ Cloud restore failed — Firebase rules denied. See console (F12).',7000);
       }
       throw new Error('HTTP '+res.status);
     }
     const data=await res.json();
     if(!data){showFbStatus('none');return;}
-    const keys=Object.keys(data);
-    if(!keys.length){showFbStatus('none');return;}
+
     const sel=document.getElementById('dfFileSelect');
-    let loaded=0,skippedTomb=0;
-    keys.forEach(function(k){
+    let loaded=0,skippedOld=0,skippedTomb=0;
+
+    Object.keys(data).forEach(function(k){
       try{
-        // Skip if tombstoned. We compare against safeFbKey(fileName) since
-        // that's how deletes register the tombstone.
         const item=data[k];
-        if(!item)return;
-        if(item.deleted===true)return;
-        const fileKey=item.fileName||k;
-        const fbKey=safeFbKey(fileKey);
-        if(tombstones.has(fbKey)||tombstones.has(k)){
-          skippedTomb++;
-          // Best-effort: also clean up the orphan data so future loads are faster.
-          fetch(FIREBASE_URL+'/uploadedFeeders/'+k+'.json',{method:'DELETE'}).catch(()=>{});
+        if(!item||item.deleted===true)return;
+
+        // Only restore active uploads. Old Firebase uploads remain stored but hidden.
+        if(!activeKeys.has(k)){
+          skippedOld++;
           return;
         }
+        if(tombstones.has(k)){
+          skippedTomb++;
+          return;
+        }
+
+        const fileKey=item.fileName||k;
         const feederName=item.feederName||fileKey.replace(/\.[^.]+$/,'');
-        // Parse rows back from string
         let rows=[];
         if(item.rowsJson){
-          try{
-            rows = (typeof item.rowsJson === 'string') ? JSON.parse(item.rowsJson) : item.rowsJson;
-          }catch(e){console.error('Row parse error for',k,e);return;}
+          try{rows=JSON.parse(item.rowsJson||'[]');}
+          catch(e){console.error('Row parse error for',k,e);return;}
         }else if(Array.isArray(item.rows)){
-          rows=item.rows; // backward compat
+          rows=item.rows;
         }
-        if(!Array.isArray(rows)||!rows.length)return;
-        const section=getSectionFromRows(rows,feederName);
-        // Store in uploadedFiles so RUN/DEL continue to use the original structure.
-        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows,section};
-        feederSectionMap[feederName]=section;
-        // Add to dropdown. Do not rebuild/change the hierarchy here.
-        if(sel){
-          let exists=false;
-          try{ exists=!!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]'); }
-          catch(_){ exists=[...sel.options].some(o=>o.value===fileKey); }
-          if(!exists){
-            const opt=document.createElement('option');
-            opt.value=fileKey;
-            opt.textContent=section+' — '+fileKey.substring(0,30)+' ('+feederName.substring(0,20)+')';
-            sel.appendChild(opt);
-          }
+        if(!rows.length)return;
+
+        // Store in uploadedFiles so the existing DEL/RUN/panel logic works unchanged.
+        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows,section:getSectionFromRows(rows,feederName)};
+        if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
+          const opt=document.createElement('option');
+          opt.value=fileKey;
+          opt.textContent=(uploadedFiles[fileKey].section||'UPLOAD')+' — '+fileKey+' ('+feederName.substring(0,20)+')';
+          sel.appendChild(opt);
         }
-        // Render using the same original drawing function used by the RUN button.
-        // This preserves division/sub_division/section hierarchy and pole_number labels.
+
         renderUploadedRows(rows,fileKey);
         loaded++;
       }catch(err){
-        console.error('Error loading feeder from Firebase:',k,err.message);
+        console.error('Error loading active feeder from Firebase:',k,err.message);
       }
     });
+
     if(loaded>0){
-      buildFeederChecks();
-      updateCounts();
+      buildFeederChecks();updateCounts();
       if(typeof buildHierFilters==='function')buildHierFilters();
       if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
       feederNames.forEach(function(fn){attachSegmentDistanceClick(fn);});
-      const skipMsg=skippedTomb>0 ? ' ('+skippedTomb+' previously deleted)' : '';
-      toast('☁️ '+loaded+' feeder(s) restored from Firebase'+skipMsg,3000);
+      const msgParts=[];
+      if(skippedOld>0)msgParts.push(skippedOld+' old hidden');
+      if(skippedTomb>0)msgParts.push(skippedTomb+' deleted skipped');
+      toast('☁️ '+loaded+' active uploaded feeder(s) restored'+(msgParts.length?' ('+msgParts.join(', ')+')':''),3500);
       showFbStatus('saved');
     }else{
+      console.log('No active uploaded feeder rows restored. Old legacy uploads skipped:',skippedOld);
       showFbStatus('none');
     }
   }catch(err){
