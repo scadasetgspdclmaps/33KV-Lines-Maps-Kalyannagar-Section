@@ -745,7 +745,30 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
 }
 
 
-/* ══ FIREBASE SYNC STATUS ══ */
+/* ── SS FOCUS BANNER (added 21 May 2026) ── */
+#ssFocusBanner{
+  position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-20px);
+  z-index:1450;
+  background:linear-gradient(135deg,rgba(8,18,30,.97),rgba(15,30,55,.97));
+  border:1.5px solid rgba(0,200,255,.45);border-radius:24px;
+  padding:9px 14px 9px 16px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:0 6px 22px rgba(0,0,0,.5),0 0 24px rgba(0,200,255,.18);
+  opacity:0;pointer-events:none;transition:all .25s ease;
+  max-width:80vw;
+}
+#ssFocusBanner.show{opacity:1;pointer-events:all;transform:translateX(-50%) translateY(0)}
+.ssf-icon{font-size:14px;flex-shrink:0;filter:drop-shadow(0 0 4px #00c8ff)}
+.ssf-text{font-family:var(--sans);font-size:12px;color:#fff;letter-spacing:.2px;line-height:1.3}
+.ssf-text b{color:#00c8ff;font-weight:700}
+.ssf-clear{
+  padding:5px 12px;border:1px solid rgba(255,100,100,.5);
+  background:rgba(255,80,80,.15);color:#ff8888;
+  font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;
+  border-radius:14px;cursor:pointer;transition:.15s;flex-shrink:0;
+}
+.ssf-clear:hover{background:rgba(255,80,80,.3);color:#fff;border-color:#ff5555}
+
 #fbStatus{position:fixed;bottom:46px;left:50%;transform:translateX(-50%);z-index:1600;
   font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:5px 14px;
   border-radius:12px;opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap}
@@ -1478,7 +1501,9 @@ let globalFeederFallback=true;
 let focusedFeeder=null;
 let editLayerCounter=0;
 // Shared canvas renderer for all circle markers (major perf boost)
-const _CR=L.canvas({padding:0.5,tolerance:3});
+// Canvas renderer for tiny pole markers. tolerance=8 gives a forgiving hit
+// target so a quick click on a 3.5-px circle still registers a popup.
+const _CR=L.canvas({padding:0.5,tolerance:8});
 
 // ══════════════════════════════════════════════════
 // STATIC SS / EHT DATA (always visible, embedded from CSV)
@@ -2446,6 +2471,12 @@ function filterFeeders(q){
 }
 
 function toggleAllFeeders(show){
+  // Clear SS focus mode if active — ALL/NONE is a deliberate "show me everything" gesture
+  if(_ssFocusMode){
+    _ssFocusMode=null;
+    _ssFocusPrevState=null;
+    if(typeof hideSSFocusBanner==='function')hideSSFocusBanner();
+  }
   globalFeederFallback=show;
   [...feederNames].forEach((fn)=>{feederState[fn]=show;});
   requestVisibilityUpdate();
@@ -2698,7 +2729,130 @@ function flyToSSByIdx(idx){
   if(typeof flyToSS==='function'){
     setTimeout(()=>{ try{ flyToSS(s); }catch(e){} },650);
   }
-  toast('📍 '+s.name.substring(0,40),2000);
+  // ── NEW (21 May 2026): filter visible feeders to only those connecting to this SS ──
+  focusOnSSFeeders(s);
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUBSTATION FOCUS MODE (added 21 May 2026 per Naresh)
+//
+// When the user clicks a substation in the SUBSTATIONS tab, the map
+// should show ONLY the feeders that flow in or out of that SS, not all
+// the other feeders. We figure out the connection by:
+//   1. Pattern-matching the SS name against feeder names like
+//      "132KV BALKAMPET-33KV E.S.I"   (both ends checked).
+//   2. Falling back to pole-row properties (name_of_33_11_SS, EHT_SS)
+//      in case the feeder name doesn't follow the standard pattern.
+//
+// A banner at top of the map shows the focus state and a "SHOW ALL"
+// reset button.
+// ─────────────────────────────────────────────────────────────
+let _ssFocusMode=null;   // {ssName, ssNorm, linkedFeeders:Set}
+let _ssFocusPrevState=null;  // {feederState snapshot for restore}
+
+function _normalizeSSName(s){
+  return String(s||'')
+    .toUpperCase()
+    .replace(/^\d+\s*KV\s*/,'')   // strip "132KV "
+    .replace(/33\s*\/\s*11\s*KV\s*/,'')  // strip "33/11KV "
+    .replace(/\s*SS$/,'')         // strip trailing " SS"
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function focusOnSSFeeders(ssData){
+  const ssRaw=(ssData&&ssData.name)||'';
+  const ssNorm=_normalizeSSName(ssRaw);
+  const ssOrig=ssRaw.toUpperCase().trim();
+  if(!ssNorm){toast('Could not parse SS name',2000);return;}
+
+  const linked=new Set();
+
+  // Strategy 1: feeder NAME pattern ("EHT_SOURCE-33KV_DEST")
+  [...feederNames].forEach(fn=>{
+    const fnUp=fn.toUpperCase();
+    // The SS name should appear either as source (before "-") or dest (after "-")
+    // We require word-boundary match so "ASIF" doesn't accidentally match "ASIFABAD"
+    const parts=fnUp.split('-');
+    const matchesAnyPart=parts.some(part=>{
+      const partNorm=_normalizeSSName(part);
+      if(!partNorm)return false;
+      // Either side contains the SS as a whole word/segment
+      return partNorm===ssNorm
+          || partNorm.split(/\s+/).join(' ').includes(ssNorm)
+          || ssNorm.split(/\s+/).join(' ').includes(partNorm);
+    });
+    if(matchesAnyPart)linked.add(fn);
+  });
+
+  // Strategy 2: pole-row properties (catches odd-shaped feeder names)
+  allLayers.forEach(item=>{
+    if(!item.reg||!['points','fpoles'].includes(item.reg.type))return;
+    const p=item.layer.feature?.properties||{};
+    const s33=_normalizeSSName(fuzzyGet(p,['name_of_33_11_SS','Name of 33/11 SS','name_of_the_33_11_SS'])||'');
+    const sEHT=_normalizeSSName(fuzzyGet(p,['name_of_eht_ss','EHT_SS','Name of EHT SS','eht_ss','name_of_the_eht_ss'])||'');
+    if((s33&&s33===ssNorm)||(sEHT&&sEHT===ssNorm)){
+      linked.add(item.feederName);
+    }
+  });
+
+  if(!linked.size){
+    toast('No feeders found connected to '+ssRaw,2500);
+    return;
+  }
+
+  // Save current state so SHOW ALL can restore exactly what was there
+  if(!_ssFocusMode){
+    _ssFocusPrevState={};
+    [...feederNames].forEach(fn=>{_ssFocusPrevState[fn]=feederState[fn]!==false;});
+  }
+  _ssFocusMode={ssName:ssRaw, ssNorm, linkedFeeders:linked};
+
+  // Apply visibility — only linked feeders show
+  [...feederNames].forEach(fn=>{
+    feederState[fn]=linked.has(fn);
+  });
+  requestVisibilityUpdate();
+  buildFeederChecks();
+
+  // Show banner
+  showSSFocusBanner(ssRaw, linked.size);
+  toast(`🎯 Showing ${linked.size} feeder(s) connected to ${ssRaw}`, 2500);
+}
+
+function clearSSFocus(){
+  if(!_ssFocusMode)return;
+  // Restore previous visibility state
+  const prev=_ssFocusPrevState||{};
+  [...feederNames].forEach(fn=>{
+    feederState[fn]=prev[fn]!==false;
+  });
+  _ssFocusMode=null;
+  _ssFocusPrevState=null;
+  requestVisibilityUpdate();
+  buildFeederChecks();
+  hideSSFocusBanner();
+  toast('Filter cleared — all feeders shown again', 2000);
+}
+
+function showSSFocusBanner(ssName, count){
+  let banner=document.getElementById('ssFocusBanner');
+  if(!banner){
+    banner=document.createElement('div');
+    banner.id='ssFocusBanner';
+    document.body.appendChild(banner);
+  }
+  banner.innerHTML=`
+    <span class="ssf-icon">🎯</span>
+    <span class="ssf-text">Showing <b>${count}</b> feeder(s) connected to <b>${ssName}</b></span>
+    <button class="ssf-clear" onclick="clearSSFocus()">SHOW ALL ✕</button>
+  `;
+  banner.classList.add('show');
+}
+
+function hideSSFocusBanner(){
+  const banner=document.getElementById('ssFocusBanner');
+  if(banner)banner.classList.remove('show');
 }
 
 // Update FEEDERS count in tab strip whenever feederNames changes
@@ -4585,31 +4739,40 @@ async function deleteUploadedFeeder(){
   if(!key||!uploadedFiles[key]){toast('Select a file to delete');return;}
   const {feederName}=uploadedFiles[key];
   if(!confirm('Delete feeder "'+feederName+'" from map and Firebase?'))return;
-  // Local removal first — feels instant to the user.
+  // ── Local removal of EVERY state map (per ChatGPT review) ──
   removeFeederLayers(feederName);
   feederNames.delete(feederName);
-  delete feederState[feederName];delete feederSectionMap[feederName];delete feederHierarchyMap[feederName];
+  delete feederState[feederName];
+  delete feederStatus[feederName];
+  delete feederSectionMap[feederName];
+  delete feederHierarchyMap[feederName];
+  if(typeof feederMetaMap!=='undefined')delete feederMetaMap[feederName];
   delete uploadedFiles[key];
   sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
   sel.value='';
   buildFeederChecks();updateCounts();
+  if(typeof buildHierFilters==='function')buildHierFilters();
   if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
-  // Firebase deletion — awaited so the toast doesn't lie. Tombstone written
-  // FIRST so even if the actual DELETE is interrupted by a refresh, the
-  // restore loop will still skip this feeder.
-  toast('🗑 Deleting from cloud…',1500);
-  const ok=await fbDelete('uploadedFeeders/'+safeFbKey(key), key);
-  toast(ok ? '🗑 Deleted: '+feederName.substring(0,25) : '⚠ Delete may not have synced — check connection',3000);
+  // ── Firebase: 3-step bulletproof combo, awaited ──
+  toast('🗑 Deleting from cloud (tombstone + soft + hard)…',1800);
+  const ok=await fbDelete('uploadedFeeders/'+safeFbKey(key), key, {feederName});
+  toast(ok ? '🗑 Deleted: '+feederName.substring(0,25)+' — survives refresh'
+           : '⚠ Cloud unreachable — local removal stuck for now',3500);
 }
 
 async function deleteFeederFromMap(fn,e){
   if(e)e.stopPropagation();
   if(!confirm('Delete feeder "'+fn+'" from map?'))return;
   if(focusedFeeder===fn)exitFocusedFeeder();
-  // Local removal first.
-  removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];delete feederSectionMap[fn];delete feederHierarchyMap[fn];
-  // Collect every Firebase key that maps to this feeder name (usually one,
-  // but a file can be re-uploaded under a different name).
+  // ── Local cleanup of EVERY state map ──
+  removeFeederLayers(fn);
+  feederNames.delete(fn);
+  delete feederState[fn];
+  delete feederStatus[fn];
+  delete feederSectionMap[fn];
+  delete feederHierarchyMap[fn];
+  if(typeof feederMetaMap!=='undefined')delete feederMetaMap[fn];
+  // Collect every Firebase key that maps to this feeder name.
   const keys=[];
   Object.keys(uploadedFiles).forEach(k=>{
     if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){
@@ -4619,12 +4782,16 @@ async function deleteFeederFromMap(fn,e){
     }
   });
   buildFeederChecks();updateCounts();
+  if(typeof buildHierFilters==='function')buildHierFilters();
   if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
-  // Firebase deletion (awaited, with tombstones).
-  toast('🗑 Deleting from cloud…',1500);
-  const results=await Promise.all(keys.map(k=>fbDelete('uploadedFeeders/'+safeFbKey(k), k)));
-  const allOk=results.every(Boolean);
-  toast(allOk ? '🗑 Deleted: '+fn.substring(0,25) : '⚠ Delete may not have synced',3000);
+  // ── Firebase: 3-step bulletproof on each key ──
+  toast('🗑 Deleting from cloud (tombstone + soft + hard)…',1800);
+  const results=await Promise.all(
+    keys.map(k=>fbDelete('uploadedFeeders/'+safeFbKey(k), k, {feederName:fn}))
+  );
+  const allOk=results.length>0 && results.every(Boolean);
+  toast(allOk ? '🗑 Deleted: '+fn.substring(0,25)+' — survives refresh'
+              : '⚠ Cloud unreachable — local removal stuck for now',3500);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -4693,12 +4860,13 @@ async function deleteWholeSection(){
   if(!targets.length){toast('No feeders found in '+sec,2000);return;}
   if(!confirm(`Delete the entire section "${sec}"?\n\nThis will remove ${targets.length} feeder(s) from:\n  • the map\n  • the side panel\n  • Firebase\n\nThis cannot be undone.`))return;
   let n=0;
-  // Local cleanup first — feels instant
+  // Local cleanup of EVERY state map
   targets.forEach(({key,fn})=>{
     if(focusedFeeder===fn)exitFocusedFeeder();
     removeFeederLayers(fn);
     feederNames.delete(fn);
     delete feederState[fn];
+    delete feederStatus[fn];
     delete feederSectionMap[fn];
     delete feederHierarchyMap[fn];
     delete feederMetaMap[fn];
@@ -4710,14 +4878,14 @@ async function deleteWholeSection(){
   updateCounts();
   if(typeof buildHierFilters==='function')buildHierFilters();
   refreshSectionDeleteDropdown();
-  // Firebase deletes — awaited with tombstones so a refresh can't undo this.
+  // Firebase 3-step bulletproof on each, awaited.
   toast(`🗑 Deleting ${n} feeder(s) from cloud…`,2000);
-  const results=await Promise.all(targets.map(({key})=>
-    fbDelete('uploadedFeeders/'+safeFbKey(key), key)
+  const results=await Promise.all(targets.map(({key,fn})=>
+    fbDelete('uploadedFeeders/'+safeFbKey(key), key, {feederName:fn})
   ));
-  const allOk=results.every(Boolean);
+  const allOk=results.length>0 && results.every(Boolean);
   toast(allOk
-    ? `🗑 Section "${sec}" deleted — ${n} feeder(s) removed`
+    ? `🗑 Section "${sec}" deleted — ${n} feeder(s) gone permanently`
     : `⚠ Some deletes may not have synced — try FORCE SYNC ALL after refresh`,
     4500);
 }
@@ -4790,29 +4958,64 @@ function fbGet(path){
 // The function returns a Promise that resolves AFTER both steps have round-
 // tripped, so callers can `await` it and only then show "Deleted" to the user.
 // ─────────────────────────────────────────────────────────────
-async function fbDelete(path, tombstoneKey){
+// ─────────────────────────────────────────────────────────────
+// BULLETPROOF DELETE (rewritten 21 May 2026 — round 3)
+//
+// The 2-step (tombstone + hard DELETE) version was already pretty good,
+// but if BOTH cloud writes get interrupted in flight (which can happen
+// on slow networks or when the user refreshes within ~50 ms of clicking
+// DELETE), the feeder still comes back. So this version executes THREE
+// independent strategies — any ONE of them succeeding is sufficient to
+// keep the feeder gone after refresh:
+//
+//   1. Tombstone       — PUT  /deletedFeeders/<key>  (small, atomic)
+//   2. Soft-delete tag — PATCH /uploadedFeeders/<key>  (sets .deleted=true)
+//   3. Hard delete     — DELETE /uploadedFeeders/<key> (best-effort cleanup)
+//
+// The restore loop checks BOTH the tombstone list AND each record's
+// .deleted flag, so a partial cloud failure can no longer bring a deleted
+// feeder back to life.
+// ─────────────────────────────────────────────────────────────
+async function fbDelete(path, tombstoneKey, meta){
   showFbStatus('saving');
-  try{
-    if(tombstoneKey){
-      // 1. Tombstone — small payload, lands fast and survives refresh.
-      await fetch(`${FIREBASE_URL}/deletedFeeders/${safeFbKey(tombstoneKey)}.json`,{
+  meta = meta || {};
+  let tombstoneOk=false, softOk=false, hardOk=false;
+
+  // Step 1 — tombstone (smallest payload, lands fastest, survives races).
+  if(tombstoneKey){
+    try{
+      const r=await fetch(`${FIREBASE_URL}/deletedFeeders/${safeFbKey(tombstoneKey)}.json`,{
         method:'PUT',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({deletedAt:new Date().toISOString()})
+        body:JSON.stringify({
+          deletedAt:new Date().toISOString(),
+          feederName:String(meta.feederName||tombstoneKey)
+        })
       });
-    }
-    // 2. Actual node deletion.
-    const res=await fetch(`${FIREBASE_URL}/${path}.json`,{method:'DELETE'});
-    if(!res.ok&&res.status!==404){
-      throw new Error('HTTP '+res.status);
-    }
-    showFbStatus('saved');
-    return true;
-  }catch(err){
-    console.error('Firebase delete error:',err);
-    showFbStatus('error');
-    return false;
+      tombstoneOk = r.ok;
+    }catch(e){console.warn('fbDelete tombstone:',e.message);}
   }
+
+  // Step 2 — soft-delete tag (PATCH only writes the flag, doesn't touch rowsJson).
+  try{
+    const r=await fetch(`${FIREBASE_URL}/${path}.json`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({deleted:true, deletedAt:new Date().toISOString()})
+    });
+    softOk = r.ok;
+  }catch(e){console.warn('fbDelete PATCH:',e.message);}
+
+  // Step 3 — hard delete (clean cleanup so the DB doesn't accumulate orphans).
+  try{
+    const r=await fetch(`${FIREBASE_URL}/${path}.json`,{method:'DELETE'});
+    hardOk = r.ok || r.status===404;
+  }catch(e){console.warn('fbDelete DELETE:',e.message);}
+
+  const anyWin = tombstoneOk || softOk || hardOk;
+  showFbStatus(anyWin ? 'saved' : 'error');
+  console.log(`fbDelete(${path}): tombstone=${tombstoneOk} soft=${softOk} hard=${hardOk} → ${anyWin?'OK':'ALL FAILED'}`);
+  return anyWin;
 }
 
 // Returns the set of tombstoned keys, so the restore loop can skip them.
@@ -4854,11 +5057,16 @@ function fbLoadFeederStatuses(){
 
 // ── Save uploaded feeder to Firebase ──
 // Rows stored as a single escaped JSON string to avoid ALL key sanitization issues
-function fbSaveUploadedFeeder(key,feederName,rows,fileName){
+async function fbSaveUploadedFeeder(key,feederName,rows,fileName){
   showFbStatus('saving');
-  // Clear any existing tombstone for this key — if the user is re-uploading
-  // a feeder they previously deleted, we want the new upload to stick.
-  fetch(`${FIREBASE_URL}/deletedFeeders/${safeFbKey(key)}.json`,{method:'DELETE'}).catch(()=>{});
+  // ── Clear any existing tombstone BEFORE writing the new data ──
+  // If the user re-uploads a feeder they previously deleted, we want the
+  // new upload to stick. Awaited so it can't race the PUT below — if the
+  // tombstone clear got cancelled, the next page load would still skip
+  // this feeder as "deleted".
+  try{
+    await fetch(`${FIREBASE_URL}/deletedFeeders/${safeFbKey(key)}.json`,{method:'DELETE'});
+  }catch(e){ /* tombstone may not exist — fine */ }
   try{
     // Convert every value to string to ensure clean JSON
     const cleanRows=rows.map(row=>{
