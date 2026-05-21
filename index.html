@@ -525,6 +525,40 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
   font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer;transition:all .2s;flex-shrink:0}
 #coordPickBtn:hover{background:rgba(0,200,255,.18);color:#fff}
 #coordPickBtn.picking{background:rgba(255,171,0,.18);border-color:rgba(255,171,0,.5);color:#ffab00}
+
+/* ── RULER button + readout (added 21 May 2026) ── */
+#rulerBtn{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:16px;
+  border:1px solid rgba(255,200,0,.35);background:rgba(255,200,0,.07);color:#ffcc40;
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;cursor:pointer;transition:all .2s;flex-shrink:0}
+#rulerBtn:hover{background:rgba(255,200,0,.18);color:#fff}
+#rulerBtn.measuring{background:#ffab00;border-color:#ffab00;color:#000;font-weight:700;
+  box-shadow:0 0 12px rgba(255,171,0,.5)}
+
+#ruler-readout{
+  position:fixed;bottom:56px;left:50%;transform:translateX(-50%);z-index:1450;
+  background:rgba(8,18,30,.96);border:1.5px solid #ffab00;border-radius:10px;
+  padding:10px 18px;font-family:var(--mono);color:#fff;
+  display:none;align-items:center;gap:14px;
+  box-shadow:0 4px 22px rgba(0,0,0,.5),0 0 24px rgba(255,171,0,.18);
+}
+#ruler-readout.show{display:flex}
+.ruler-r-lbl{font-size:9px;color:rgba(255,171,0,.7);letter-spacing:1.5px;font-weight:700}
+.ruler-r-val{font-size:18px;font-weight:800;color:#ffab00;letter-spacing:.5px}
+.ruler-r-sub{font-size:10px;color:rgba(255,255,255,.6);font-family:var(--sans)}
+.ruler-r-btn{margin-left:8px;padding:5px 11px;border-radius:7px;border:1px solid rgba(255,171,0,.4);
+  background:rgba(255,171,0,.12);color:#ffcc40;cursor:pointer;font-family:var(--mono);
+  font-size:9px;letter-spacing:1px;font-weight:700;transition:.15s}
+.ruler-r-btn:hover{background:rgba(255,171,0,.28);color:#fff}
+.ruler-marker{
+  width:12px;height:12px;background:#ffab00;border:2px solid #fff;border-radius:50%;
+  box-shadow:0 0 8px #ffab00, 0 1px 3px rgba(0,0,0,.5);transform:translate(-6px,-6px);
+}
+.ruler-label{
+  background:#ffab00;color:#000;font-family:var(--mono);font-weight:800;
+  font-size:11px;padding:2px 7px;border-radius:5px;white-space:nowrap;
+  box-shadow:0 2px 6px rgba(0,0,0,.4);transform:translate(-50%, -150%);
+  pointer-events:none;
+}
 .coord-popup .leaflet-popup-content-wrapper{
   background:rgba(8,18,30,.97)!important;color:var(--text)!important;
   border:1px solid rgba(0,200,255,.3)!important;border-radius:10px!important;
@@ -1040,6 +1074,7 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
   <div class="tb-sep"></div>
   <div class="tb-title">SCADA 33KV Grid Map</div>
   <div id="coordPickBtn" onclick="toggleCoordPicker()" title="Pick coordinates on map">📍 PICK COORDS</div>
+  <div id="rulerBtn" onclick="toggleRuler()" title="Measure distance — click points on map, ESC to clear">📏 RULER</div>
   <div id="srchWrap" style="position:relative">
     <input id="srchInput" placeholder="Search feeders, pole no., cable point…" autocomplete="off"/>
     <div id="fsDropdown"></div>
@@ -1111,6 +1146,17 @@ path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!im
      during Firebase restore broke the per-feeder render loop and made
      uploaded data appear to vanish after refresh. -->
 <div id="toast"></div>
+
+<!-- ── RULER readout (added 21 May 2026) ── -->
+<div id="ruler-readout">
+  <div>
+    <div class="ruler-r-lbl">DISTANCE</div>
+    <div class="ruler-r-val" id="rulerDist">— m</div>
+    <div class="ruler-r-sub" id="rulerSegs">click points to measure · ESC to clear</div>
+  </div>
+  <button class="ruler-r-btn" onclick="clearRuler()">CLEAR</button>
+  <button class="ruler-r-btn" onclick="toggleRuler()">EXIT</button>
+</div>
 
 <!-- Firebase sync status pill (bottom of map) -->
 <div id="fbStatus"></div>
@@ -2405,6 +2451,136 @@ function toggleAllFeeders(show){
   requestVisibilityUpdate();
   buildFeederChecks();
   toast(show?'All feeders shown':'All feeders hidden');
+}
+
+// ─────────────────────────────────────────────────────────────
+// RULER TOOL (added 21 May 2026)
+//
+// Click any point on the map to start measuring. Each subsequent click
+// adds a vertex; the total great-circle distance is shown in the floating
+// readout. ESC clears the path. ENTER or clicking EXIT closes the tool.
+// ─────────────────────────────────────────────────────────────
+let _rulerActive=false;
+let _rulerPoints=[];       // [{lat,lng}, ...]
+let _rulerMarkers=[];      // L.marker[]
+let _rulerLabels=[];       // L.marker[] showing segment lengths
+let _rulerPolyline=null;   // L.polyline
+let _rulerLivePolyline=null;  // dashed preview line to cursor
+let _rulerCursorMarker=null;
+
+function toggleRuler(){
+  if(_rulerActive){
+    // Closing
+    _exitRuler();
+  }else{
+    // Opening — make sure no other modal tools are active
+    if(typeof coordPickActive!=='undefined'&&coordPickActive&&typeof toggleCoordPicker==='function'){
+      toggleCoordPicker();
+    }
+    _rulerActive=true;
+    document.getElementById('rulerBtn')?.classList.add('measuring');
+    document.getElementById('ruler-readout')?.classList.add('show');
+    map.getContainer().style.cursor='crosshair';
+    map.on('click',_rulerOnClick);
+    map.on('mousemove',_rulerOnMove);
+    document.addEventListener('keydown',_rulerOnKey);
+    clearRuler();
+    toast('📏 Ruler ON — click points on the map. ESC to clear, EXIT to close.',3500);
+  }
+}
+
+function _exitRuler(){
+  _rulerActive=false;
+  document.getElementById('rulerBtn')?.classList.remove('measuring');
+  document.getElementById('ruler-readout')?.classList.remove('show');
+  map.getContainer().style.cursor='';
+  map.off('click',_rulerOnClick);
+  map.off('mousemove',_rulerOnMove);
+  document.removeEventListener('keydown',_rulerOnKey);
+  clearRuler();
+}
+
+function clearRuler(){
+  _rulerPoints=[];
+  _rulerMarkers.forEach(m=>map.removeLayer(m));
+  _rulerLabels.forEach(m=>map.removeLayer(m));
+  _rulerMarkers=[];
+  _rulerLabels=[];
+  if(_rulerPolyline){map.removeLayer(_rulerPolyline);_rulerPolyline=null;}
+  if(_rulerLivePolyline){map.removeLayer(_rulerLivePolyline);_rulerLivePolyline=null;}
+  _updateRulerReadout(0,0);
+}
+
+function _rulerOnKey(e){
+  if(e.key==='Escape')clearRuler();
+  else if(e.key==='Enter')_exitRuler();
+}
+
+function _rulerOnClick(e){
+  if(!_rulerActive)return;
+  L.DomEvent.stopPropagation(e);
+  const ll={lat:e.latlng.lat,lng:e.latlng.lng};
+  _rulerPoints.push(ll);
+  // Marker
+  const m=L.marker(ll,{icon:L.divIcon({className:'',html:'<div class="ruler-marker"></div>',iconSize:[12,12],iconAnchor:[6,6]}),interactive:false}).addTo(map);
+  _rulerMarkers.push(m);
+  // Polyline
+  if(_rulerPolyline)map.removeLayer(_rulerPolyline);
+  _rulerPolyline=L.polyline(_rulerPoints.map(p=>[p.lat,p.lng]),{
+    color:'#ffab00',weight:3.5,opacity:.95,dashArray:'6 4',lineCap:'round'
+  }).addTo(map);
+  // Segment label (between previous and this point)
+  if(_rulerPoints.length>=2){
+    const a=_rulerPoints[_rulerPoints.length-2];
+    const b=_rulerPoints[_rulerPoints.length-1];
+    const km=haversineKm(a,b);
+    const mid={lat:(a.lat+b.lat)/2,lng:(a.lng+b.lng)/2};
+    const lbl=L.marker(mid,{icon:L.divIcon({className:'',html:`<div class="ruler-label">${_fmtDistance(km)}</div>`,iconSize:[1,1]}),interactive:false}).addTo(map);
+    _rulerLabels.push(lbl);
+  }
+  // Recompute totals
+  _recomputeRulerTotals();
+}
+
+function _rulerOnMove(e){
+  if(!_rulerActive||!_rulerPoints.length)return;
+  const tail=_rulerPoints[_rulerPoints.length-1];
+  const cursor={lat:e.latlng.lat,lng:e.latlng.lng};
+  if(_rulerLivePolyline)map.removeLayer(_rulerLivePolyline);
+  _rulerLivePolyline=L.polyline([[tail.lat,tail.lng],[cursor.lat,cursor.lng]],{
+    color:'#ffab00',weight:2,opacity:.6,dashArray:'2 4'
+  }).addTo(map);
+  // Live total = committed total + cursor leg
+  const committed=_computeTotalKm();
+  const live=committed+haversineKm(tail,cursor);
+  _updateRulerReadout(live,_rulerPoints.length);
+}
+
+function _computeTotalKm(){
+  let total=0;
+  for(let i=1;i<_rulerPoints.length;i++){
+    total+=haversineKm(_rulerPoints[i-1],_rulerPoints[i]);
+  }
+  return total;
+}
+
+function _recomputeRulerTotals(){
+  _updateRulerReadout(_computeTotalKm(),_rulerPoints.length);
+}
+
+function _fmtDistance(km){
+  if(km<1)return Math.round(km*1000)+' m';
+  return km.toFixed(3)+' km';
+}
+
+function _updateRulerReadout(km,nPoints){
+  const dEl=document.getElementById('rulerDist');
+  const sEl=document.getElementById('rulerSegs');
+  if(dEl)dEl.textContent=km>0?_fmtDistance(km):'— m';
+  if(sEl){
+    if(nPoints<2)sEl.textContent='click points to measure · ESC to clear';
+    else sEl.textContent=(nPoints-1)+' segment'+(nPoints-1===1?'':'s')+' · '+nPoints+' points';
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -4403,30 +4579,52 @@ function removeFeederLayers(fn){
   delete feederLayerMap[fn];
 }
 
-function deleteUploadedFeeder(){
+async function deleteUploadedFeeder(){
   const sel=document.getElementById('dfFileSelect');
   const key=sel.value;
   if(!key||!uploadedFiles[key]){toast('Select a file to delete');return;}
   const {feederName}=uploadedFiles[key];
   if(!confirm('Delete feeder "'+feederName+'" from map and Firebase?'))return;
+  // Local removal first — feels instant to the user.
   removeFeederLayers(feederName);
-  feederNames.delete(feederName);delete feederState[feederName];delete feederSectionMap[feederName];delete feederHierarchyMap[feederName];delete uploadedFiles[key];
+  feederNames.delete(feederName);
+  delete feederState[feederName];delete feederSectionMap[feederName];delete feederHierarchyMap[feederName];
+  delete uploadedFiles[key];
   sel.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
-  sel.value='';buildFeederChecks();updateCounts();
+  sel.value='';
+  buildFeederChecks();updateCounts();
   if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
-  if(typeof fbSet==='function') fbSet(`uploadedFeeders/${safeFbKey(key)}`,null);
-  toast('🗑 Deleted: '+feederName.substring(0,25),2500);
+  // Firebase deletion — awaited so the toast doesn't lie. Tombstone written
+  // FIRST so even if the actual DELETE is interrupted by a refresh, the
+  // restore loop will still skip this feeder.
+  toast('🗑 Deleting from cloud…',1500);
+  const ok=await fbDelete('uploadedFeeders/'+safeFbKey(key), key);
+  toast(ok ? '🗑 Deleted: '+feederName.substring(0,25) : '⚠ Delete may not have synced — check connection',3000);
 }
 
-function deleteFeederFromMap(fn,e){
+async function deleteFeederFromMap(fn,e){
   if(e)e.stopPropagation();
   if(!confirm('Delete feeder "'+fn+'" from map?'))return;
   if(focusedFeeder===fn)exitFocusedFeeder();
+  // Local removal first.
   removeFeederLayers(fn);feederNames.delete(fn);delete feederState[fn];delete feederSectionMap[fn];delete feederHierarchyMap[fn];
-  Object.keys(uploadedFiles).forEach(k=>{if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){delete uploadedFiles[k];document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove(); if(typeof fbSet==='function')fbSet(`uploadedFeeders/${safeFbKey(k)}`,null);}});
+  // Collect every Firebase key that maps to this feeder name (usually one,
+  // but a file can be re-uploaded under a different name).
+  const keys=[];
+  Object.keys(uploadedFiles).forEach(k=>{
+    if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){
+      keys.push(k);
+      delete uploadedFiles[k];
+      document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove();
+    }
+  });
   buildFeederChecks();updateCounts();
   if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
-  toast('🗑 Deleted: '+fn.substring(0,25),2500);
+  // Firebase deletion (awaited, with tombstones).
+  toast('🗑 Deleting from cloud…',1500);
+  const results=await Promise.all(keys.map(k=>fbDelete('uploadedFeeders/'+safeFbKey(k), k)));
+  const allOk=results.every(Boolean);
+  toast(allOk ? '🗑 Deleted: '+fn.substring(0,25) : '⚠ Delete may not have synced',3000);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -4475,7 +4673,7 @@ function refreshSectionDeleteDropdown(){
   if(cur&&entries.some(e=>(e.div+'|'+e.sub+'|'+e.sec)===cur))sel.value=cur;
 }
 
-function deleteWholeSection(){
+async function deleteWholeSection(){
   const sel=document.getElementById('dfSectionDel');
   const key=sel?.value;
   if(!key){toast('Pick a section first',2000);return;}
@@ -4495,6 +4693,7 @@ function deleteWholeSection(){
   if(!targets.length){toast('No feeders found in '+sec,2000);return;}
   if(!confirm(`Delete the entire section "${sec}"?\n\nThis will remove ${targets.length} feeder(s) from:\n  • the map\n  • the side panel\n  • Firebase\n\nThis cannot be undone.`))return;
   let n=0;
+  // Local cleanup first — feels instant
   targets.forEach(({key,fn})=>{
     if(focusedFeeder===fn)exitFocusedFeeder();
     removeFeederLayers(fn);
@@ -4505,14 +4704,22 @@ function deleteWholeSection(){
     delete feederMetaMap[fn];
     delete uploadedFiles[key];
     document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
-    if(typeof fbSet==='function')fbSet(`uploadedFeeders/${safeFbKey(key)}`,null).catch(()=>{});
     n++;
   });
   buildFeederChecks();
   updateCounts();
   if(typeof buildHierFilters==='function')buildHierFilters();
   refreshSectionDeleteDropdown();
-  toast(`🗑 Deleted section "${sec}" — ${n} feeder(s) removed`,3500);
+  // Firebase deletes — awaited with tombstones so a refresh can't undo this.
+  toast(`🗑 Deleting ${n} feeder(s) from cloud…`,2000);
+  const results=await Promise.all(targets.map(({key})=>
+    fbDelete('uploadedFeeders/'+safeFbKey(key), key)
+  ));
+  const allOk=results.every(Boolean);
+  toast(allOk
+    ? `🗑 Section "${sec}" deleted — ${n} feeder(s) removed`
+    : `⚠ Some deletes may not have synced — try FORCE SYNC ALL after refresh`,
+    4500);
 }
 /* =========================================================
    FIREBASE INTEGRATION — TGSPDCL KALYANNAGAR GIS
@@ -4566,6 +4773,62 @@ function fbGet(path){
     .catch(err=>{console.error('Firebase read error:',err);showFbStatus('error');return null;});
 }
 
+// ─────────────────────────────────────────────────────────────
+// Reliable Firebase delete (added 21 May 2026)
+//
+// The PUT-null fire-and-forget pattern that older code used was unreliable:
+// if the user refreshed quickly, the browser cancelled the in-flight request
+// and the Firebase node was never actually deleted, so the feeder came back
+// after refresh.
+//
+// fbDelete() instead:
+//   1. Writes a tombstone (deletedFeeders/<key> = true) FIRST — this
+//      always-fresh marker means the restore loop will skip the feeder
+//      even if step 2 never completes.
+//   2. Issues an explicit HTTP DELETE on the data node.
+//
+// The function returns a Promise that resolves AFTER both steps have round-
+// tripped, so callers can `await` it and only then show "Deleted" to the user.
+// ─────────────────────────────────────────────────────────────
+async function fbDelete(path, tombstoneKey){
+  showFbStatus('saving');
+  try{
+    if(tombstoneKey){
+      // 1. Tombstone — small payload, lands fast and survives refresh.
+      await fetch(`${FIREBASE_URL}/deletedFeeders/${safeFbKey(tombstoneKey)}.json`,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({deletedAt:new Date().toISOString()})
+      });
+    }
+    // 2. Actual node deletion.
+    const res=await fetch(`${FIREBASE_URL}/${path}.json`,{method:'DELETE'});
+    if(!res.ok&&res.status!==404){
+      throw new Error('HTTP '+res.status);
+    }
+    showFbStatus('saved');
+    return true;
+  }catch(err){
+    console.error('Firebase delete error:',err);
+    showFbStatus('error');
+    return false;
+  }
+}
+
+// Returns the set of tombstoned keys, so the restore loop can skip them.
+async function fbGetTombstones(){
+  try{
+    const res=await fetch(`${FIREBASE_URL}/deletedFeeders.json`);
+    if(!res.ok)return new Set();
+    const data=await res.json();
+    if(!data)return new Set();
+    return new Set(Object.keys(data));
+  }catch(e){
+    console.error('Firebase tombstone read error:',e);
+    return new Set();
+  }
+}
+
 // ── Save feeder status ──
 function fbSaveFeederStatus(fn,status){
   if(status==='live'){
@@ -4593,6 +4856,9 @@ function fbLoadFeederStatuses(){
 // Rows stored as a single escaped JSON string to avoid ALL key sanitization issues
 function fbSaveUploadedFeeder(key,feederName,rows,fileName){
   showFbStatus('saving');
+  // Clear any existing tombstone for this key — if the user is re-uploading
+  // a feeder they previously deleted, we want the new upload to stick.
+  fetch(`${FIREBASE_URL}/deletedFeeders/${safeFbKey(key)}.json`,{method:'DELETE'}).catch(()=>{});
   try{
     // Convert every value to string to ensure clean JSON
     const cleanRows=rows.map(row=>{
@@ -4698,36 +4964,50 @@ function forceSyncAllToFirebase(){
 }
 
 // ── Load all uploaded feeders on startup ──
-function fbLoadUploadedFiles(){
+async function fbLoadUploadedFiles(){
   showFbStatus('loading');
-  fetch(FIREBASE_URL+'/uploadedFeeders.json')
-  .then(function(res){
+  // ── TOMBSTONE CHECK (added 21 May 2026) ──
+  // Anything in deletedFeeders/ stays deleted, even if its data is still
+  // sitting in uploadedFeeders/ because an earlier delete didn't complete.
+  const tombstones=await fbGetTombstones();
+  if(tombstones.size>0){
+    console.log('Skipping',tombstones.size,'tombstoned feeder(s):',[...tombstones]);
+  }
+
+  try{
+    const res=await fetch(FIREBASE_URL+'/uploadedFeeders.json');
     if(!res.ok){
-      return res.text().then(function(t){
-        if(res.status===401||/permission|denied|unauthor/i.test(t)){
-          console.error('═══════════════════════════════════════════════════');
-          console.error('  FIREBASE READ PERMISSION DENIED (401)');
-          console.error('  Open Firebase Console → Realtime Database → Rules');
-          console.error('  Set ".read":true and ".write":true → Publish');
-          console.error('═══════════════════════════════════════════════════');
-          toast('⚠️ Cloud restore failed — Firebase rules EXPIRED. See console (F12) for fix.',7000);
-        }
-        throw new Error('HTTP '+res.status);
-      });
+      const t=await res.text();
+      if(res.status===401||/permission|denied|unauthor/i.test(t)){
+        console.error('═══════════════════════════════════════════════════');
+        console.error('  FIREBASE READ PERMISSION DENIED (401)');
+        console.error('  Open Firebase Console → Realtime Database → Rules');
+        console.error('  Set ".read":true and ".write":true → Publish');
+        console.error('═══════════════════════════════════════════════════');
+        toast('⚠️ Cloud restore failed — Firebase rules EXPIRED. See console (F12) for fix.',7000);
+      }
+      throw new Error('HTTP '+res.status);
     }
-    return res.json();
-  })
-  .then(function(data){
+    const data=await res.json();
     if(!data){showFbStatus('none');return;}
     const keys=Object.keys(data);
     if(!keys.length){showFbStatus('none');return;}
     const sel=document.getElementById('dfFileSelect');
-    let loaded=0;
+    let loaded=0,skippedTomb=0;
     keys.forEach(function(k){
       try{
+        // Skip if tombstoned. We compare against safeFbKey(fileName) since
+        // that's how deletes register the tombstone.
         const item=data[k];
         if(!item)return;
         const fileKey=item.fileName||k;
+        const fbKey=safeFbKey(fileKey);
+        if(tombstones.has(fbKey)||tombstones.has(k)){
+          skippedTomb++;
+          // Best-effort: also clean up the orphan data so future loads are faster.
+          fetch(FIREBASE_URL+'/uploadedFeeders/'+k+'.json',{method:'DELETE'}).catch(()=>{});
+          return;
+        }
         const feederName=item.feederName||fileKey.replace(/\.[^.]+$/,'');
         // Parse rows back from string
         let rows=[];
@@ -4760,22 +5040,22 @@ function fbLoadUploadedFiles(){
       if(typeof buildHierFilters==='function')buildHierFilters();
       if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
       feederNames.forEach(function(fn){attachSegmentDistanceClick(fn);});
-      toast('☁️ '+loaded+' feeder(s) restored from Firebase',3000);
+      const skipMsg=skippedTomb>0 ? ' ('+skippedTomb+' previously deleted)' : '';
+      toast('☁️ '+loaded+' feeder(s) restored from Firebase'+skipMsg,3000);
       showFbStatus('saved');
     }else{
       showFbStatus('none');
     }
-  })
-  .catch(function(err){
+  }catch(err){
     console.error('Firebase load error:',err.message);
     showFbStatus('error');
-  });
+  }
 }
 
 // ── Auto-load after map fully initialised (wait for all static data) ──
-setTimeout(()=>{
+setTimeout(async ()=>{
   fbLoadFeederStatuses();
-  fbLoadUploadedFiles();
+  await fbLoadUploadedFiles();
 }, 3500);
 </script>
 
