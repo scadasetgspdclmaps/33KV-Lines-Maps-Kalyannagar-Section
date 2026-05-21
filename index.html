@@ -193,13 +193,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--navy)}
 .eht-kv{font-family:var(--mono);font-size:7px;color:rgba(255,160,60,.9);line-height:1;letter-spacing:.5px;pointer-events:none}
 
 /* FLOW ANIMATION */
-@keyframes energy-flow-overlay{to{stroke-dashoffset:-28}}
-.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!important;
-  animation:energy-flow-overlay 2.2s linear infinite!important;pointer-events:none!important;
-  stroke-opacity:.78!important}
-path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!important;
-  animation:energy-flow-overlay 2.2s linear infinite!important;pointer-events:none!important;
-  stroke-opacity:.78!important}
+@keyframes energy-flow-overlay{to{stroke-dashoffset:-24}}
+.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!important;
+  animation:energy-flow-overlay .8s linear infinite!important;pointer-events:none!important;
+  will-change:stroke-dashoffset}
+path.feeder-flow-overlay{stroke-dasharray:4 20!important;stroke-linecap:round!important;
+  animation:energy-flow-overlay .8s linear infinite!important;pointer-events:none!important}
 @keyframes sos-blink{
   0%,100%{opacity:1;filter:drop-shadow(0 0 14px #ff1744) drop-shadow(0 0 6px #ff1744)}
   50%{opacity:.15;filter:drop-shadow(0 0 4px #ff1744)}
@@ -427,17 +426,12 @@ path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!im
    the glow to medium-zoom and above via the .map-zoomed-far class on
    the map container.
 */
-.fv6-ug{filter:drop-shadow(0 0 2px #2196f3)!important}
-.fv6-oh{filter:drop-shadow(0 0 2px #ff9800)!important}
-.fv6-tr{filter:drop-shadow(0 0 2px #9c27b0)!important}
-/* Google-Maps-like pan mode: during drag/zoom and at zoomed-out levels, remove
-   expensive SVG filters + labels + CSS flow animation. This keeps the map moving
-   immediately, then restores the SCADA styling after interaction ends. */
-#map.is-interacting .fv6-ug,#map.is-interacting .fv6-oh,#map.is-interacting .fv6-tr,
-#map.map-zoomed-far .fv6-ug,#map.map-zoomed-far .fv6-oh,#map.map-zoomed-far .fv6-tr{filter:none!important}
-#map.is-interacting .pole-label,#map.is-interacting .ss-label{display:none!important}
-/* During interactive pan/zoom, keep feeder flow visible but reduce visual cost */
-#map.is-interacting .feeder-flow-overlay{opacity:.65!important}
+.fv6-ug{filter:drop-shadow(0 0 3px #2196f3) drop-shadow(0 0 8px rgba(33,150,243,.5))!important;will-change:filter}
+.fv6-oh{filter:drop-shadow(0 0 3px #ff9800) drop-shadow(0 0 8px rgba(255,152,0,.5))!important;will-change:filter}
+.fv6-tr{filter:drop-shadow(0 0 3px #9c27b0) drop-shadow(0 0 8px rgba(156,39,176,.5))!important;will-change:filter}
+
+/* During interactive pan/zoom, freeze GPU-heavy animations to keep frame rate up */
+#map.is-interacting .feeder-flow-overlay{animation-play-state:paused!important}
 #map.is-interacting .ss33-ring{animation-play-state:paused!important}
 #map.is-interacting .ss33-core{animation-play-state:paused!important}
 #map.is-interacting .eht-rect{animation-play-state:paused!important}
@@ -446,9 +440,9 @@ path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!im
 
 
 @keyframes energy-flow-v6{to{stroke-dashoffset:-28}}
-.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!important;
-  animation:energy-flow-v6 2.2s linear infinite!important;pointer-events:none!important;
-  stroke-opacity:.78!important}
+.feeder-flow-overlay{stroke-dasharray:6 16!important;stroke-linecap:round!important;
+  animation:energy-flow-v6 1.4s linear infinite!important;pointer-events:none!important;
+  will-change:stroke-dashoffset;stroke-opacity:.85!important}
 
 /* ══ FEEDER PANEL REDESIGN ══ */
 .fr-row{display:flex;flex-direction:column;padding:8px 10px 6px;border-radius:10px;
@@ -1037,7 +1031,7 @@ path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!im
 <body>
 <div id="loader">
   <div class="ld-logo">TGSPDCL</div>
-  <div class="ld-sub">SCADA-33KV FEEDER GRID MAP</div>
+  <div class="ld-sub">KALYANNAGAR SECTION · 33KV</div>
   <div class="ld-bar"><div class="ld-fill" id="ldfill"></div></div>
 </div>
 
@@ -1111,6 +1105,15 @@ path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!im
 
 </div>
 <div id="map"></div>
+
+<!-- Toast for transient status messages — restored 21 May 2026.
+     Without this element, the toast() helper threw on every call, which
+     during Firebase restore broke the per-feeder render loop and made
+     uploaded data appear to vanish after refresh. -->
+<div id="toast"></div>
+
+<!-- Firebase sync status pill (bottom of map) -->
+<div id="fbStatus"></div>
 
 <div id="botbar">
   <span>LAT/LNG: <span id="coords">17.4400, 78.3900</span></span>
@@ -1279,6 +1282,9 @@ path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!im
       <button class="tb-upload-btn" onclick="document.getElementById('dfFileInput2').click()" style="width:100%;justify-content:center;margin-bottom:6px;font-size:9px">⬆ Upload CSV / XLSX</button>
       <input type="file" id="dfFileInput2" accept=".csv,.xlsx,.xls" onchange="handleFileUpload(this)" style="display:none"/>
 
+      <!-- ── FORCE SYNC ALL (added 10 May 2026 — manual cloud-recovery escape hatch) ── -->
+      <button onclick="forceSyncAllToFirebase()" style="width:100%;padding:7px;margin-bottom:6px;background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;border-radius:5px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:.18s" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">↻ FORCE SYNC ALL TO CLOUD</button>
+
       <!-- ── BULK SECTION DELETE (added 09 May 2026 per Naresh) ── -->
       <div style="border-top:1px dashed rgba(0,0,0,.1);margin:10px 0 8px;padding-top:8px">
         <div style="font-family:var(--mono);font-size:8px;color:#dc2626;letter-spacing:1.5px;margin-bottom:6px;font-weight:700">⚠ BULK DELETE BY SECTION</div>
@@ -1307,11 +1313,10 @@ path.feeder-flow-overlay{stroke-dasharray:5 18!important;stroke-linecap:round!im
 const map = L.map('map',{
   center:[17.4400,78.3900], zoom:14, zoomControl:false,
   preferCanvas:false,
-  renderer:L.svg({padding:0.1}),
   zoomAnimation:true, zoomAnimationThreshold:4,
   fadeAnimation:true, markerZoomAnimation:true,
-  inertia:true, inertiaDeceleration:2200, inertiaMaxSpeed:1800, easeLinearity:0.22,
-  scrollWheelZoom:true, wheelDebounceTime:10, wheelPxPerZoomLevel:65,
+  inertia:true, inertiaDeceleration:3500, inertiaMaxSpeed:Infinity,
+  scrollWheelZoom:true, wheelDebounceTime:24, wheelPxPerZoomLevel:80,
   zoomSnap:0.25, zoomDelta:0.5,
   doubleClickZoom:true, keyboard:true, keyboardPanDelta:80,
 });
@@ -1331,8 +1336,8 @@ window.addEventListener('resize',()=>map.invalidateSize());
 // ── BASEMAPS ──
 const _tileOpts = {
   maxZoom:22, maxNativeZoom:19,
-  updateWhenIdle:false, updateWhenZooming:true,
-  keepBuffer:4, tileSize:256, crossOrigin:true,
+  updateWhenIdle:true, updateWhenZooming:false,
+  keepBuffer:6, tileSize:256, crossOrigin:true,
 };
 const _bmDefs = {
   dark:      ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{..._tileOpts,subdomains:'abcd'}],
@@ -1442,7 +1447,7 @@ function ssKey(name, lat, lon){
 // ── Diamond pole icon for V6 style ──
 function diamondIcon(color){
   const s=`<svg width="11" height="11" viewBox="0 0 11 11"><rect x=".8" y=".8" width="9.4" height="9.4" rx="1.5" transform="rotate(45 5.5 5.5)" fill="${color}" stroke="rgba(255,255,255,.8)" stroke-width="1.2" style="filter:drop-shadow(0 0 2px ${color})"/></svg>`;
-  return L.divIcon({className:'',html:s,iconSize:[14,14],iconAnchor:[7,7]});
+  return L.divIcon({className:'',html:s,iconSize:[11,11],iconAnchor:[5,5]});
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1546,7 +1551,7 @@ function renderStaticSS(){
 
 function mkIcon(fill,stroke,shape){
   const s=`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13'>${shape==='square'?`<rect width='13' height='13' rx='2' fill='${fill}' stroke='${stroke}' stroke-width='2'/>`:`<circle cx='6.5' cy='6.5' r='5.5' fill='${fill}' stroke='${stroke}' stroke-width='2'/>`}</svg>`;
-  return L.divIcon({className:'',html:s,iconSize:[16,16],iconAnchor:[8,8]});
+  return L.divIcon({className:'',html:s,iconSize:[13,13],iconAnchor:[6,6]});
 }
 
 // ── AUTO-DISCOVERY ENGINE ──────────────────────────────────────
@@ -1676,15 +1681,15 @@ DATA_REGISTRY.forEach(reg=>{
           {color,weight:3,opacity:1,smoothFactor:1,lineCap:'round',lineJoin:'round',className:customClass.trim()});
         let flowClass='feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':'');
         layer.flowLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
-          {color:'#ffffff',weight:2,opacity:.85,className:flowClass,interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
+          {color:'#ffffff',weight:3,className:flowClass,interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
         layer.hitLayer=L.polyline(feat.geometry.type==='LineString'?coords:coords[0],
           {color:'#000000',weight:24,opacity:0,interactive:true,bubblingMouseEvents:false});
         bindFeederLinePopup(layer,feat,reg,feederName,cableType);
-        layer.on('mouseover',e=>{e.target.setStyle({opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({opacity:.95});});
+        layer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:4});});
         layer.on('mouseout',e=>{
           const isFocused=focusedFeeder&&focusedFeeder!==feederName;
-          e.target.setStyle({opacity:isFocused?.15:.92});
-          if(e.target.flowLayer)e.target.flowLayer.setStyle({opacity:.85});
+          e.target.setStyle({weight:5.5,opacity:isFocused?.15:.92});
+          if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:3});
         });
       }
     }
@@ -1694,11 +1699,11 @@ DATA_REGISTRY.forEach(reg=>{
       if(reg.type==='points'||reg.type==='fpoles'){
         layer=L.circleMarker(ll,{radius:3.5,fillColor:'#fff',fillOpacity:1,color:cableColor(cableType,isOH),weight:1.5,pane:'pointsPane',renderer:_CR});
       }else if(reg.type==='cut'){
-        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 11 11'><line x1='2' y1='2' x2='9' y2='9' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/><line x1='9' y1='2' x2='2' y2='9' stroke='#ffeb3b' stroke-width='2' stroke-linecap='round'/></svg>`,iconSize:[11,11],iconAnchor:[5.5,5.5]}),pane:'pointsPane'});
+        layer=L.marker(ll,{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><line x1='2' y1='2' x2='12' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='2' x2='2' y2='12' stroke='#ffeb3b' stroke-width='2.5' stroke-linecap='round'/></svg>`,iconSize:[14,14],iconAnchor:[7,7]}),pane:'pointsPane'});
       regType='cut';
       }else if(reg.type==='ab'||reg.type==='dp'){
         const isAB=(reg.type==='ab');
-        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='18' height='13' viewBox='0 0 22 16'><line x1='0' y1='8' x2='6' y2='8' stroke='#ff9800' stroke-width='1.5'/><circle cx='11' cy='8' r='6' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1.5'/><rect x='5.5' y='5.5' width='11' height='3' rx='1' fill='#ff9800'/><circle cx='6.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><circle cx='15.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><line x1='16' y1='8' x2='22' y2='8' stroke='#ff9800' stroke-width='1.5'/></svg>`,iconSize:[18,13],iconAnchor:[9,6.5]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='18' viewBox='0 0 16 18'><line x1='4' y1='0' x2='4' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='0' x2='12' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='4' y1='7' x2='12' y2='7' stroke='#2196f3' stroke-width='2' stroke-linecap='round'/><circle cx='4' cy='3' r='2' fill='#2196f3'/><circle cx='12' cy='3' r='2' fill='#2196f3'/></svg>`,iconSize:[16,18],iconAnchor:[8,9]}),pane:'pointsPane'});
+        layer=L.marker(ll,{icon:isAB?L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='22' height='16' viewBox='0 0 22 16'><line x1='0' y1='8' x2='6' y2='8' stroke='#ff9800' stroke-width='1.5'/><circle cx='11' cy='8' r='6' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1.5'/><rect x='5.5' y='5.5' width='11' height='3' rx='1' fill='#ff9800'/><circle cx='6.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><circle cx='15.5' cy='10' r='1.5' fill='rgba(8,18,30,.9)' stroke='#ff9800' stroke-width='1'/><line x1='16' y1='8' x2='22' y2='8' stroke='#ff9800' stroke-width='1.5'/></svg>`,iconSize:[22,16],iconAnchor:[11,8]}):L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='18' viewBox='0 0 16 18'><line x1='4' y1='0' x2='4' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='12' y1='0' x2='12' y2='18' stroke='#2196f3' stroke-width='2.5' stroke-linecap='round'/><line x1='4' y1='7' x2='12' y2='7' stroke='#2196f3' stroke-width='2' stroke-linecap='round'/><circle cx='4' cy='3' r='2' fill='#2196f3'/><circle cx='12' cy='3' r='2' fill='#2196f3'/></svg>`,iconSize:[16,18],iconAnchor:[8,9]}),pane:'pointsPane'});
       }else if(reg.type.startsWith('ss33')){
         const h=`<div class="ss33-wrap"><div class="ss33-ring"></div><div class="ss33-core"><span class="ss33-bolt">⚡</span></div></div>`;
         layer=L.marker(ll,{zIndexOffset:1000,icon:L.divIcon({className:'',html:h,iconSize:[36,36],iconAnchor:[18,18]})});
@@ -1820,21 +1825,53 @@ function feederRoutePopup(feat, regEntry, feederName, cableType, layer, latlng){
   const startEnd=String(feederName||p['Feeder Name']||'FEEDER');
   const type=(cableType==='OH')?'OH':(cableType==='UG'?'UG':'TRANS');
   const typeColor=(type==='OH')?'#ff9800':(type==='UG'?'#2196f3':'#9c27b0');
-  let len='—';
-  try{ len=calcLineLength(layer).toFixed(3)+' km'; }catch(e){}
+
+  // ── SEGMENT (pole-to-pole) length under the click ─────────────────
+  // Previously this popup showed the entire polyline length (which can span
+  // many poles after our type-segmentation). The user wants the length of
+  // the single pole-to-pole edge they actually clicked on.
+  let segKm=0, polylineKm=0;
+  try{ polylineKm=calcLineLength(layer); }catch(e){}
+  try{
+    if(latlng&&layer.getLatLngs){
+      const lls=layer.getLatLngs();
+      const pts=Array.isArray(lls[0])?lls.flat():lls;
+      // Find the (i, i+1) pair whose great-circle path is closest to the click
+      let best=Infinity,bestI=0;
+      for(let i=0;i<pts.length-1;i++){
+        const m=pointToSegmentDistKm(latlng,pts[i],pts[i+1]);
+        if(m<best){best=m;bestI=i;}
+      }
+      segKm=haversineKm(pts[bestI],pts[bestI+1]);
+    }
+  }catch(e){}
+  const segLen   = segKm>0      ? (segKm*1000).toFixed(0)+' m'    : '—';
+  const polyLen  = polylineKm>0 ? polylineKm.toFixed(3)+' km'    : '—';
+
+  // Also show TOTAL feeder length (sum of every segment of this feeder)
+  let totalKm=0;
+  try{
+    const s=calcFeederStats(feederName);
+    if(s)totalKm=s.totalKm;
+  }catch(e){}
+  const totalLen = totalKm>0 ? totalKm.toFixed(3)+' km' : '—';
+
   const lat = latlng ? latlng.lat.toFixed(6) : '';
   const lng = latlng ? latlng.lng.toFixed(6) : '';
   const safeFeeder=escJS(startEnd);
   return `
-    <div style="font-family:Arial,sans-serif;min-width:270px">
+    <div style="font-family:Arial,sans-serif;min-width:280px">
       <div style="font-weight:700;font-size:14px;color:#0d1b2a;margin-bottom:6px">${startEnd}</div>
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
         <span style="background:${typeColor};color:#fff;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700">${type}</span>
-        <span style="font-size:11px;color:#555">Length: <b>${len}</b></span>
+        <span style="font-size:11px;color:#0d1b2a;font-weight:600">Segment: <b style="color:${typeColor}">${segLen}</b></span>
       </div>
       <table class="popup-table">
         <tr><th>Feeder</th><td>${startEnd}</td></tr>
         <tr><th>Cable Type</th><td>${type}</td></tr>
+        <tr><th>Segment length</th><td><b>${segLen}</b> <span style="color:#94a3b8;font-size:10px">(pole-to-pole)</span></td></tr>
+        <tr><th>This run length</th><td>${polyLen} <span style="color:#94a3b8;font-size:10px">(unbroken ${type} stretch)</span></td></tr>
+        <tr><th>Whole feeder</th><td>${totalLen}</td></tr>
         <tr><th>Clicked Location</th><td>${lat}, ${lng}</td></tr>
       </table>
       <div class="fs-status-bar" style="margin-top:10px">
@@ -1843,6 +1880,19 @@ function feederRoutePopup(feat, regEntry, feederName, cableType, layer, latlng){
         <div class="fs-status-btn ${(feederStatus[startEnd]||'live')==='idle'?'active-idle':''}" onclick="setFeederStatus('${safeFeeder}','idle',this)">Ⅱ IDLE</div>
       </div>
     </div>`;
+}
+
+// Great-circle distance from a point to a 2-vertex segment (km). Used to
+// figure out which pole-to-pole edge the user clicked on.
+function pointToSegmentDistKm(pt, a, b){
+  // Project click onto the segment in plate-carrée — accurate enough at city scale
+  const ax=a.lng, ay=a.lat, bx=b.lng, by=b.lat, px=pt.lng, py=pt.lat;
+  const dx=bx-ax, dy=by-ay;
+  const lenSq=dx*dx+dy*dy;
+  let t=lenSq>0 ? ((px-ax)*dx+(py-ay)*dy)/lenSq : 0;
+  t=Math.max(0,Math.min(1,t));
+  const cx=ax+t*dx, cy=ay+t*dy;
+  return haversineKm({lat:py,lng:px},{lat:cy,lng:cx});
 }
 
 function bindFeederLinePopup(lineLayer, feat, regEntry, feederName, cableType){
@@ -1856,8 +1906,8 @@ function bindFeederLinePopup(lineLayer, feat, regEntry, feederName, cableType){
   lineLayer.on('click',openAt);
   if(lineLayer.hitLayer){
     lineLayer.hitLayer.on('click',openAt);
-    lineLayer.hitLayer.on('mouseover',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({opacity:1}); if(lineLayer.flowLayer)lineLayer.flowLayer.setStyle({opacity:.95}); });
-    lineLayer.hitLayer.on('mouseout',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({opacity:.92}); if(lineLayer.flowLayer)lineLayer.flowLayer.setStyle({opacity:.85}); });
+    lineLayer.hitLayer.on('mouseover',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({weight:7.5,opacity:1}); });
+    lineLayer.hitLayer.on('mouseout',()=>{ if(lineLayer.setStyle)lineLayer.setStyle({weight:5.5,opacity:.92}); });
   }
 }
 
@@ -2923,22 +2973,46 @@ function downloadFeederCSV(){
 
 let _tt;
 function toast(msg,dur=2200){
-  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),dur);
+  // Self-healing (fixed 21 May 2026): the #toast div had been accidentally
+  // removed from the HTML during an earlier refactor. When that happened,
+  // every toast() call threw "Cannot set properties of null" which silently
+  // killed the Firebase restore loop (50+ feeders failed to render in
+  // sequence). Now we recreate the element on demand if it's missing —
+  // toast() can NEVER throw again, no matter what surgery happens to the DOM.
+  let t=document.getElementById('toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toast';
+    document.body.appendChild(t);
+  }
+  try{
+    t.textContent=msg;
+    t.classList.add('show');
+    clearTimeout(_tt);
+    _tt=setTimeout(()=>t.classList.remove('show'),dur);
+  }catch(e){
+    // Last-ditch — never let a UI helper crash the caller
+    console.warn('toast() failed:',e&&e.message,'msg:',msg);
+  }
 }
 
-// Loader
+// Loader — gracefully tolerate missing #ldfill so a DOM tweak can't break startup
 const fill=document.getElementById('ldfill');let pct=0;
-const iv=setInterval(()=>{pct+=Math.random()*15+7;if(pct>=100){pct=100;clearInterval(iv);}fill.style.width=pct+'%';},80);
+const iv=setInterval(()=>{
+  pct+=Math.random()*15+7;
+  if(pct>=100){pct=100;clearInterval(iv);}
+  if(fill)fill.style.width=pct+'%';
+},80);
 
 function dismissLoader(){
   const ov=document.getElementById('loader');
   if(ov){ov.classList.add('gone');setTimeout(()=>ov.remove(),500);}
   map.invalidateSize();
-  // Deferred Feeder_Segments_148
+  // Deferred Feeder_Segments_148 — optional aux file. 404 is fine and silent.
   setTimeout(()=>{
     const s=document.createElement('script');
     s.src='data/Feeder_Segments_148.js';
+    s.onerror=()=>{ /* aux file missing — that's OK, no console spam */ };
     s.onload=()=>{
       try{
         if(typeof json_Feeder_Segments_148!=='undefined'&&json_Feeder_Segments_148.features){
@@ -2956,12 +3030,12 @@ function dismissLoader(){
                 let fName=p['Feeder_Name']||p['Name of the Feeder']||'Feeder Segments';
                 let cStatus=feederStatus[fName]||'live';
                 const layer=L.polyline(coords,{color,weight:5.5,opacity:.92,lineCap:'round',lineJoin:'round',className:cStatus==='breakdown'?'feeder-breakdown':''});
-                layer.flowLayer=L.polyline(coords,{color:'#ffffff',weight:2,opacity:.85,className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
+                layer.flowLayer=L.polyline(coords,{color:'#ffffff',weight:3,className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),interactive:false,bubblingMouseEvents:false,pane:'flowPane'});
                 const regData={type:'fsegs',feeder:'Feeder Segments',cable:'-'};
                 layer.bindPopup(popup(feat,regData));
                 layer.on('popupopen',function(e){e.popup.setContent(popup(feat,regData));});
-                layer.on('mouseover',e=>{e.target.setStyle({opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({opacity:.95});});
-                layer.on('mouseout',e=>{const isFocused=focusedFeeder&&focusedFeeder!==fName;e.target.setStyle({opacity:isFocused?.15:.92});if(e.target.flowLayer)e.target.flowLayer.setStyle({opacity:.85});});
+                layer.on('mouseover',e=>{e.target.setStyle({weight:7.5,opacity:1});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:4});});
+                layer.on('mouseout',e=>{const isFocused=focusedFeeder&&focusedFeeder!==fName;e.target.setStyle({weight:5.5,opacity:isFocused?.15:.92});if(e.target.flowLayer)e.target.flowLayer.setStyle({weight:3});});
                 allLayers.push({layer,reg:regData,feederName:fName,cable:segCable,poleNo:null});
                 if(!feederLayerMap[fName])feederLayerMap[fName]=[];
                 feederLayerMap[fName].push({layer,reg:regData,cable:segCable});
@@ -3189,19 +3263,13 @@ function initParticleCanvas(){
   _pCanvas.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:500';
   document.getElementById('map').appendChild(_pCanvas);
   window.addEventListener('resize',resizeParticleCanvas);
-  map.on('moveend zoomend',resizeParticleCanvas);
+  map.on('move zoom',resizeParticleCanvas);
   resizeParticleCanvas();
 }
 function resizeParticleCanvas(){
   if(!_pCanvas)return;
   const el=document.getElementById('map');
-  const dpr=Math.min(window.devicePixelRatio||1,2);
-  const w=el.offsetWidth,h=el.offsetHeight;
-  if(_pCanvas.width===Math.round(w*dpr)&&_pCanvas.height===Math.round(h*dpr))return;
-  _pCanvas.width=Math.round(w*dpr);_pCanvas.height=Math.round(h*dpr);
-  _pCanvas.style.width=w+'px';_pCanvas.style.height=h+'px';
-  _pCtx=_pCanvas.getContext('2d');
-  _pCtx.setTransform(dpr,0,0,dpr,0,0);
+  _pCanvas.width=el.offsetWidth;_pCanvas.height=el.offsetHeight;
 }
 
 function initParticles(){
@@ -3227,7 +3295,6 @@ function animateParticles(ts){
   if(ts-_pLastTime<33){_pRAF=requestAnimationFrame(animateParticles);return;}
   _pLastTime=ts;
   if(!_pCanvas||!_pCtx){_pCtx=_pCanvas?.getContext('2d');if(!_pCtx){_pRAF=requestAnimationFrame(animateParticles);return;}}
-  if(map.getContainer().classList.contains('is-interacting')){_pCtx.clearRect(0,0,_pCanvas.width,_pCanvas.height);_pRAF=requestAnimationFrame(animateParticles);return;}
   _pCtx.clearRect(0,0,_pCanvas.width,_pCanvas.height);
   const SPEED=0.004; // medium speed
   Object.entries(_particles).forEach(([fn,p])=>{
@@ -3894,7 +3961,7 @@ map.on('zoomend',syncLabels);
   const c=map.getContainer();
   let _intIdle=null;
   function on(){c.classList.add('is-interacting');clearTimeout(_intIdle);}
-  function off(){clearTimeout(_intIdle);_intIdle=setTimeout(()=>c.classList.remove('is-interacting'),220);}
+  function off(){clearTimeout(_intIdle);_intIdle=setTimeout(()=>c.classList.remove('is-interacting'),140);}
   map.on('movestart zoomstart dragstart',on);
   map.on('moveend zoomend dragend',off);
 })();
@@ -3947,19 +4014,26 @@ function handleFileUpload(input){
     const key=file.name;
     uploadedFiles[key]={feederName:fn,rows,fileName:file.name,section};
     feederSectionMap[fn]=section;
-
-    // Cloud persistence: save immediately after upload too, so it survives refresh
-    // even if the user forgets to click RUN. RUN still saves again after drawing.
-    if(typeof fbSaveUploadedFeeder==='function'){
-      try{ fbSaveUploadedFeeder(key, fn, rows, file.name, section); }
-      catch(err){ console.error('Upload Firebase save trigger failed:', err); }
-    }
     const sel=document.getElementById('dfFileSelect');
     let opt=sel.querySelector('option[value="'+CSS.escape(key)+'"]');
     if(!opt){opt=document.createElement('option');opt.value=key;sel.appendChild(opt);}
     opt.textContent=section+' — '+file.name+' ('+fn.substring(0,20)+')';
     sel.value=key;
-    toast('Loaded: '+file.name+' — '+rows.length+' rows, section: '+section,3500);
+    toast('📂 Loaded: '+file.name+' — '+rows.length+' rows',2500);
+
+    // ── AUTO-RENDER + AUTO-SAVE (fixed 10 May 2026) ──
+    // Previously the user had to click RUN to render AND save. If they
+    // refreshed before clicking RUN, the data was lost. Now both happen
+    // automatically right after upload.
+    try{
+      renderUploadedRows(rows, file.name);
+    }catch(err){
+      console.error('Render error after upload:',err);
+      toast('⚠ Render error: '+err.message,3500);
+    }
+    if(typeof fbSaveUploadedFeeder==='function'){
+      fbSaveUploadedFeeder(key, fn, rows, file.name);
+    }
   };
   if(isXLSX)reader.readAsArrayBuffer(file);
   else reader.readAsText(file);
@@ -4019,8 +4093,8 @@ function _drawSegment(feederName, coords, typeRaw, regLine){
   // White energy-flow overlay: thin enough so UG/OH color remains visible.
   const flowLayer=L.polyline(coords,{
     color:'#ffffff',
-    weight:2,
-    opacity:0.85,
+    weight:2.2,
+    opacity:0.9,
     className:'feeder-flow-overlay'+(cStatus!=='live'?' hidden-flow':''),
     interactive:false,bubblingMouseEvents:false,pane:'flowPane'
   });
@@ -4051,28 +4125,35 @@ function _drawSegment(feederName, coords, typeRaw, regLine){
 
 // ── Connect array of parsed poles as type-segmented polylines ──
 // Each consecutive pair of poles shares a segment; when type changes a new segment starts.
-// The segment type is taken from the FIRST pole of each segment (pole N → N+1 uses type of pole N).
+// Length-accuracy fix (21 May 2026): the previous version had a double-close
+// bug — the trailing fallback `if(segCoords.length>=2)_drawSegment(...)` would
+// redraw the final run after the loop had already drawn it, inflating UG/OH
+// totals (especially noticeable on same-type feeders, e.g. all-UG, where the
+// whole feeder length was being counted twice). This rewrite walks each
+// consecutive (i-1, i) pair, accumulating into the open segment, and closes
+// exactly once at every type-boundary plus once at the end.
 function _drawPoleSequence(feederName, poles, regLine){
-  if(poles.length<2)return;
+  if(!poles||poles.length<2)return;
   let segCoords=[[poles[0].lat,poles[0].lng]];
+  // Use the segment's STARTING pole type for that segment
   let segType=poles[0].typeRaw;
-
   for(let i=1;i<poles.length;i++){
     const p=poles[i];
-    segCoords.push([p.lat,p.lng]);
-    // When the type changes at the NEXT pole, close current segment and start new one
-    const nextType=p.typeRaw;
-    if(nextType!==segType&&i<poles.length-1){
+    const prev=poles[i-1];
+    // The type of the segment from prev → p comes from prev (the upstream pole)
+    const pairType=prev.typeRaw;
+    if(pairType!==segType){
+      // Type just changed — close the previous segment at `prev`
       _drawSegment(feederName,segCoords,segType,regLine);
-      segCoords=[[p.lat,p.lng]];
-      segType=nextType;
-    }else if(i===poles.length-1){
-      // Last pole — close segment
-      _drawSegment(feederName,segCoords,segType,regLine);
+      segCoords=[[prev.lat,prev.lng]];
+      segType=pairType;
     }
+    segCoords.push([p.lat,p.lng]);
   }
-  // Edge: if type never changed
-  if(segCoords.length>=2)_drawSegment(feederName,segCoords,segType,regLine);
+  // Close the final segment exactly once
+  if(segCoords.length>=2){
+    _drawSegment(feederName,segCoords,segType,regLine);
+  }
 }
 
 function renderUploadedRows(rows,sourceFileName){
@@ -4114,30 +4195,62 @@ function renderUploadedRows(rows,sourceFileName){
 
     // Separate main poles from spur poles
     const mainPoles=parsed.filter(p=>p.pn.isMain).sort((a,b)=>a.pn.base-b.pn.base);
+
+    // ── SPUR GROUPING (rewritten 21 May 2026) ──
+    // Old code grouped every spur of a base under one key, so first-level
+    // siblings (40/A/1, 40/A/2) and nested sub-spurs (40/A/3/B/1, 40/A/3/B/2)
+    // ended up drawn as a single zig-zag. Now we group by full branch path
+    // `base + spurKey`, then each group is drawn from its OWN parent:
+    //   • A first-level group ("A") attaches to the main pole at that base.
+    //   • A nested group ("A/3/B") attaches to the pole one level up,
+    //     i.e. base=40, spurKey="A", branchSeq=3 — that's the pole "40/A/3".
     const spurGroups={};
     parsed.filter(p=>!p.pn.isMain).forEach(p=>{
-      if(!spurGroups[p.pn.base])spurGroups[p.pn.base]=[];
-      spurGroups[p.pn.base].push(p);
+      const k=p.pn.base+'_'+(p.pn.spurKey||p.pn.branchLetter||'?');
+      if(!spurGroups[k])spurGroups[k]=[];
+      spurGroups[k].push(p);
     });
-    Object.values(spurGroups).forEach(g=>g.sort((a,b)=>{
-      const ka=String(a.pn.spurKey||a.pn.branchLetter||'').replace(/[^0-9]/g,'');
-      const kb=String(b.pn.spurKey||b.pn.branchLetter||'').replace(/[^0-9]/g,'');
-      const na=parseInt(ka)||a.pn.branchSeq||0;
-      const nb=parseInt(kb)||b.pn.branchSeq||0;
-      if(na!==nb)return na-nb;
-      return (a.pn.branchSeq||0)-(b.pn.branchSeq||0);
-    }));
+    // Sort each group by branchSeq (the number AFTER the last letter)
+    Object.values(spurGroups).forEach(g=>g.sort((a,b)=>(a.pn.branchSeq||0)-(b.pn.branchSeq||0)));
+
+    // Helper — for a given (base, spurKey), find the parent pole
+    function _findSpurParent(baseNum, spurKey){
+      // First-level spur: "A" or "B" (no slashes inside)
+      if(!spurKey||!spurKey.includes('/')){
+        return mainPoles.find(p=>p.pn.base===baseNum);
+      }
+      // Nested spur: spurKey like "A/3/B" → parent is at base=baseNum,
+      // spurKey="A", branchSeq=3 (the SECOND-to-last token, which is the
+      // numeric pos of the parent on the path-up branch).
+      // Example: child "A/3/B" parts=['A','3','B']
+      //   parts[length-2] = '3' → parent.branchSeq = 3
+      //   parts.slice(0,-2)  = ['A']  → parent.spurKey  = 'A'
+      // Example: child "A/3/B/5/C" parts=['A','3','B','5','C']
+      //   parts[length-2] = '5' → parent.branchSeq = 5
+      //   parts.slice(0,-2)  = ['A','3','B'] → parent.spurKey = 'A/3/B'
+      const parts=spurKey.split('/');
+      const parentBranchSeq=parseInt(parts[parts.length-2]);
+      const parentSpurKey=parts.length>2 ? parts.slice(0,-2).join('/') : parts[0];
+      // Look in the parent's spur group first
+      const parentGroup=spurGroups[baseNum+'_'+parentSpurKey];
+      if(parentGroup){
+        const found=parentGroup.find(p=>p.pn.branchSeq===parentBranchSeq);
+        if(found)return found;
+      }
+      // Last resort — drop back to the main pole at this base so the
+      // branch still attaches somewhere visible.
+      return mainPoles.find(p=>p.pn.base===baseNum);
+    }
 
     // ── Draw MAIN LINE as type-segmented polylines ──
     _drawPoleSequence(feederName, mainPoles, regLine);
 
-    // ── Draw SPUR BRANCHES ──
-    // SPUR FIX (09 May 2026): grp is an array of poles (NOT an object with .base/.poles).
-    // The base number lives in the key gk; the parent pole on the main line is at
-    // mainPoles where pn.base === parseInt(gk).
-    Object.entries(spurGroups).forEach(([gk,grp])=>{
-      const baseNum=parseInt(gk);
-      const parent=mainPoles.find(p=>p.pn.base===baseNum);
+    // ── Draw SPUR BRANCHES (both first-level and nested) ──
+    Object.keys(spurGroups).forEach(gk=>{
+      const grp=spurGroups[gk];
+      const [baseStr,spurKey]=gk.split('_');
+      const baseNum=parseInt(baseStr);
+      const parent=_findSpurParent(baseNum,spurKey);
       const branchPoles=parent?[parent,...grp]:grp;
       if(branchPoles.length>=2)_drawPoleSequence(feederName,branchPoles,regLine);
     });
@@ -4195,27 +4308,28 @@ function renderUploadedRows(rows,sourceFileName){
         regType='ab';
         // Distinctive AB Switch icon — orange diamond with central bar
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',
-          html:`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 18 18'>
-            <rect x='2' y='2' width='14' height='14' rx='2' transform='rotate(45 9 9)' fill='#ff9800' stroke='#fff' stroke-width='1.4'/>
+          html:`<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'>
+            <rect x='2' y='2' width='14' height='14' rx='2' transform='rotate(45 9 9)' fill='#ff9800' stroke='#fff' stroke-width='1.4' style='filter:drop-shadow(0 0 3px #ff9800)'/>
             <line x1='4.5' y1='9' x2='13.5' y2='9' stroke='#fff' stroke-width='2.2' stroke-linecap='round'/>
           </svg>`,
-          iconSize:[13,13],iconAnchor:[6.5,6.5]}),pane:'pointsPane'});
+          iconSize:[18,18],iconAnchor:[9,9]}),pane:'pointsPane'});
       }else if(isDP){
         regType='dp';
         // DP Structure — purple double-pole symbol
         layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',
-          html:`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='18' viewBox='0 0 14 16'>
+          html:`<svg xmlns='http://www.w3.org/2000/svg' width='14' height='16' viewBox='0 0 14 16'>
             <line x1='3' y1='1' x2='3' y2='15' stroke='#9c27b0' stroke-width='2.4' stroke-linecap='round'/>
             <line x1='11' y1='1' x2='11' y2='15' stroke='#9c27b0' stroke-width='2.4' stroke-linecap='round'/>
             <line x1='3' y1='6' x2='11' y2='6' stroke='#9c27b0' stroke-width='1.8'/>
             <circle cx='3' cy='3' r='1.6' fill='#9c27b0' stroke='#fff' stroke-width='.6'/>
             <circle cx='11' cy='3' r='1.6' fill='#9c27b0' stroke='#fff' stroke-width='.6'/>
           </svg>`,
-          iconSize:[16,18],iconAnchor:[8,9]}),pane:'pointsPane'});
+          iconSize:[14,16],iconAnchor:[7,8]}),pane:'pointsPane'});
       }else if(isCut){
         regType='cut';
-        // Cut Point — small yellow "X"
-        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 13 13'><line x1='2' y1='2' x2='11' y2='11' stroke='#ffeb3b' stroke-width='2.4' stroke-linecap='round'/><line x1='11' y1='2' x2='2' y2='11' stroke='#ffeb3b' stroke-width='2.4' stroke-linecap='round'/></svg>`,iconSize:[13,13],iconAnchor:[6.5,6.5]}),pane:'pointsPane'});
+        // Cut Point — small yellow "X" the same visual size as a pole dot
+        // (Pole circle markers render at ~7 px diameter; the X here is 7×7 too.)
+        layer=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'cut-pt-icon',html:`<svg xmlns='http://www.w3.org/2000/svg' width='7' height='7' viewBox='0 0 7 7'><line x1='1' y1='1' x2='6' y2='6' stroke='#ffeb3b' stroke-width='1.6' stroke-linecap='round'/><line x1='6' y1='1' x2='1' y2='6' stroke='#ffeb3b' stroke-width='1.6' stroke-linecap='round'/></svg>`,iconSize:[7,7],iconAnchor:[3.5,3.5]}),pane:'pointsPane'});
       }else if(p.pn.spurKey){
         layer=L.circleMarker([p.lat,p.lng],{radius:3,fillColor:'#ffe082',fillOpacity:1,color:'#ff9800',weight:1.5,pane:'pointsPane',renderer:_CR});
       }else{
@@ -4273,10 +4387,7 @@ function runUploadedFeeder(){
 
   // Save to Firebase permanently
   if(typeof fbSaveUploadedFeeder==='function'){
-    fbSaveUploadedFeeder(key, feederName, rows, fileName, section);
-  }else{
-    toast('⚠️ Firebase save function missing in this HTML',4000);
-    console.warn('fbSaveUploadedFeeder is missing; uploaded feeder will not persist.');
+    fbSaveUploadedFeeder(key, feederName, rows, fileName);
   }
 }
 
@@ -4480,7 +4591,7 @@ function fbLoadFeederStatuses(){
 
 // ── Save uploaded feeder to Firebase ──
 // Rows stored as a single escaped JSON string to avoid ALL key sanitization issues
-function fbSaveUploadedFeeder(key,feederName,rows,fileName,section){
+function fbSaveUploadedFeeder(key,feederName,rows,fileName){
   showFbStatus('saving');
   try{
     // Convert every value to string to ensure clean JSON
@@ -4505,24 +4616,48 @@ function fbSaveUploadedFeeder(key,feederName,rows,fileName,section){
     };
     const path='uploadedFeeders/'+safeFbKey(key);
     const body=JSON.stringify(payload);
+
+    // Warn about size — Firebase RTDB caps a single write at ~16 MB but
+    // browsers can get sluggish well before that. Just log it.
+    if(body.length>5*1024*1024){
+      console.warn('Large Firebase write:',(body.length/1024/1024).toFixed(2),'MB — file:',fileName);
+    }
+
     fetch(FIREBASE_URL+'/'+path+'.json',{
       method:'PUT',
       headers:{'Content-Type':'application/json'},
       body:body
     })
     .then(function(res){
-      if(!res.ok)return res.text().then(function(t){throw new Error('HTTP '+res.status+': '+t.substring(0,100));});
+      if(!res.ok){
+        return res.text().then(function(t){
+          // ── EXPLICIT DIAGNOSIS for the #1 cause of data loss ──
+          // Firebase Realtime DB default rules expire after 30 days. Once
+          // expired, every write returns 401 Permission Denied. Make this
+          // case unmistakable.
+          if(res.status===401||/permission|denied|unauthor/i.test(t)){
+            const msg='Firebase rules EXPIRED or DENIED. Open Firebase Console → Realtime Database → Rules → set ".read":true and ".write":true → Publish.';
+            console.error('═══════════════════════════════════════════════════');
+            console.error('  FIREBASE PERMISSION DENIED (401)');
+            console.error('  '+msg);
+            console.error('═══════════════════════════════════════════════════');
+            throw new Error('PERMISSION DENIED — Firebase rules expired. Click ⚠ in toast for fix.');
+          }
+          throw new Error('HTTP '+res.status+': '+t.substring(0,100));
+        });
+      }
       return res.json();
     })
     .then(function(){
-      toast('☁️ Saved to Firebase — survives refresh',3000);
+      toast('☁️ '+feederName.substring(0,30)+' saved to Cloud',2500);
       showFbStatus('saved');
-      console.log('Firebase save OK:',path,'rows:',cleanRows.length,'Check:',FIREBASE_URL+'/uploadedFeeders.json');
+      console.log('Firebase save OK:',path,'rows:',cleanRows.length);
     })
     .catch(function(err){
       console.error('Firebase save error:',err.message);
       showFbStatus('error');
-      toast('⚠️ Cloud save failed: '+err.message,4000);
+      // Make this very visible — 6 seconds, prominent
+      toast('⚠️ CLOUD SAVE FAILED — '+err.message,6000);
     });
   }catch(err){
     console.error('Firebase prep error:',err.message);
@@ -4531,12 +4666,55 @@ function fbSaveUploadedFeeder(key,feederName,rows,fileName,section){
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// FORCE SYNC ALL — manual cloud-recovery (added 10 May 2026)
+// Re-pushes every currently-loaded uploaded feeder to Firebase.
+// Useful after fixing Firebase rules, or after a session where the
+// cloud was unreachable. Walks `uploadedFiles` sequentially with a
+// small delay so we don't hammer the endpoint.
+// ─────────────────────────────────────────────────────────────
+function forceSyncAllToFirebase(){
+  const keys=Object.keys(uploadedFiles||{});
+  if(!keys.length){toast('Nothing to sync — no uploaded files in memory',2500);return;}
+  if(!confirm(`Re-push ${keys.length} uploaded feeder(s) to Firebase?\n\nUse this if cloud save was failing earlier (e.g. after fixing Firebase rules).`))return;
+  toast(`☁️ Force-syncing ${keys.length} file(s) to Cloud…`,2500);
+  let i=0,ok=0,fail=0;
+  function step(){
+    if(i>=keys.length){
+      toast(`✅ Sync complete — ${ok} ok, ${fail} failed`,4500);
+      return;
+    }
+    const k=keys[i++];
+    const f=uploadedFiles[k];
+    if(!f||!f.rows){step();return;}
+    try{
+      // Re-use the standard save path; track success via setTimeout
+      fbSaveUploadedFeeder(k, f.feederName, f.rows, f.fileName||k);
+      ok++;
+    }catch(e){fail++;console.error('Force-sync failed for',k,e);}
+    setTimeout(step,250); // pace at ~4 writes/sec
+  }
+  step();
+}
+
 // ── Load all uploaded feeders on startup ──
 function fbLoadUploadedFiles(){
   showFbStatus('loading');
   fetch(FIREBASE_URL+'/uploadedFeeders.json')
   .then(function(res){
-    if(!res.ok)throw new Error('HTTP '+res.status);
+    if(!res.ok){
+      return res.text().then(function(t){
+        if(res.status===401||/permission|denied|unauthor/i.test(t)){
+          console.error('═══════════════════════════════════════════════════');
+          console.error('  FIREBASE READ PERMISSION DENIED (401)');
+          console.error('  Open Firebase Console → Realtime Database → Rules');
+          console.error('  Set ".read":true and ".write":true → Publish');
+          console.error('═══════════════════════════════════════════════════');
+          toast('⚠️ Cloud restore failed — Firebase rules EXPIRED. See console (F12) for fix.',7000);
+        }
+        throw new Error('HTTP '+res.status);
+      });
+    }
     return res.json();
   })
   .then(function(data){
@@ -4561,12 +4739,12 @@ function fbLoadUploadedFiles(){
         }
         if(!rows.length)return;
         // Store in uploadedFiles so DEL button works
-        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows,section:item.section||getSectionFromRows(rows,feederName)};
+        uploadedFiles[fileKey]={fileName:fileKey,feederName,rows};
         // Add to dropdown
         if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
           const opt=document.createElement('option');
           opt.value=fileKey;
-          opt.textContent=(item.section||getSectionFromRows(rows,feederName)||'UPLOADED')+' — '+fileKey.substring(0,30)+' ('+feederName.substring(0,20)+')';
+          opt.textContent=fileKey.substring(0,30)+' ('+feederName.substring(0,20)+')';
           sel.appendChild(opt);
         }
         // Render on map
