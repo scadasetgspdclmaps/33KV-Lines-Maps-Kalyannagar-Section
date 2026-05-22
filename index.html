@@ -4326,7 +4326,7 @@ function handleFileUpload(input){
   input.value='';
   const reader=new FileReader();
   const isXLSX=/\.xlsx?$/i.test(file.name);
-  reader.onload=function(e){
+  reader.onload=async function(e){
     let rows=[];
     if(isXLSX){
       try{
@@ -4340,9 +4340,13 @@ function handleFileUpload(input){
       rows=parseCSV(e.target.result);
     }
     if(!rows.length){toast('No valid rows found in file',3000);return;}
-    const fn=rows[0].feeder_name||rows[0]['Feeder Name']||rows[0]['feeder name']||file.name.replace(/\.[^.]+$/,'');
-    const section=getSectionFromRows(rows,fn);
+
+    const grouped=groupRowsByFeederForFirebase(rows,file.name);
+    const firstGroup=grouped[0];
+    const fn=firstGroup?.feederName || file.name.replace(/\.[^.]+$/,'');
+    const section=getSectionFromRows(firstGroup?.rows||rows,fn);
     const key=file.name;
+
     uploadedFiles[key]={feederName:fn,rows,fileName:file.name,section};
     feederSectionMap[fn]=section;
     const sel=document.getElementById('dfFileSelect');
@@ -4352,18 +4356,13 @@ function handleFileUpload(input){
     sel.value=key;
     toast('📂 Loaded: '+file.name+' — '+rows.length+' rows',2500);
 
-    // ── AUTO-RENDER + AUTO-SAVE (fixed 10 May 2026) ──
-    // Previously the user had to click RUN to render AND save. If they
-    // refreshed before clicking RUN, the data was lost. Now both happen
-    // automatically right after upload.
     try{
+      // SAVE FIRST to the hierarchy path, then draw. This prevents refresh from restoring old cloud data.
+      await fbSaveUploadedFeeder(key, fn, rows, file.name);
       renderUploadedRows(rows, file.name);
     }catch(err){
-      console.error('Render error after upload:',err);
-      toast('⚠ Render error: '+err.message,3500);
-    }
-    if(typeof fbSaveUploadedFeeder==='function'){
-      fbSaveUploadedFeeder(key, fn, rows, file.name);
+      console.error('Upload save/render error:',err);
+      toast('⚠ Upload error: '+(err.message||err),5000);
     }
   };
   if(isXLSX)reader.readAsArrayBuffer(file);
@@ -4709,16 +4708,19 @@ function renderUploadedRows(rows,sourceFileName){
     map.flyToBounds(L.latLngBounds(allPts),{padding:[60,60],maxZoom:16,animate:true,duration:.7});
   }
 }
-function runUploadedFeeder(){
+async function runUploadedFeeder(){
   const sel=document.getElementById('dfFileSelect');
   const key=sel.value;
   if(!key||!uploadedFiles[key]){toast('Select an uploaded file first');return;}
-  const {rows,fileName,feederName,section}=uploadedFiles[key];
-  renderUploadedRows(rows,fileName);
+  const {rows,fileName,feederName}=uploadedFiles[key];
 
-  // Save to Firebase permanently
-  if(typeof fbSaveUploadedFeeder==='function'){
-    fbSaveUploadedFeeder(key, feederName, rows, fileName);
+  try{
+    // SAVE FIRST to Firebase hierarchy, then draw locally.
+    await fbSaveUploadedFeeder(key, feederName, rows, fileName);
+    renderUploadedRows(rows,fileName);
+  }catch(err){
+    console.error('RUN save/render error:',err);
+    toast('⚠ RUN failed: '+(err.message||err),5000);
   }
 }
 
@@ -4738,9 +4740,11 @@ async function deleteUploadedFeeder(){
   const sel=document.getElementById('dfFileSelect');
   const key=sel.value;
   if(!key||!uploadedFiles[key]){toast('Select a file to delete');return;}
-  const {feederName}=uploadedFiles[key];
-  if(!confirm('Delete feeder "'+feederName+'" from map and Firebase?'))return;
-  // ── Local removal of EVERY state map (per ChatGPT review) ──
+  const f=uploadedFiles[key];
+  const {feederName,rows}=f;
+  if(!confirm('Delete feeder "'+feederName+'" from map and Firebase hierarchy?'))return;
+
+  // Local removal
   removeFeederLayers(feederName);
   feederNames.delete(feederName);
   delete feederState[feederName];
@@ -4754,18 +4758,30 @@ async function deleteUploadedFeeder(){
   buildFeederChecks();updateCounts();
   if(typeof buildHierFilters==='function')buildHierFilters();
   if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
-  // ── Firebase: 3-step bulletproof combo, awaited ──
-  toast('🗑 Deleting from cloud (tombstone + soft + hard)…',1800);
-  const ok=await fbDelete('uploadedFeeders/'+safeFbKey(key), key, {feederName});
-  toast(ok ? '🗑 Deleted: '+feederName.substring(0,25)+' — survives refresh'
-           : '⚠ Cloud unreachable — local removal stuck for now',3500);
+
+  toast('🗑 Deleting from Firebase hierarchy…',1800);
+  const ok=await fbDeleteHierarchyFeeder(rows?.[0] || null, feederName);
+  toast(ok ? '🗑 Deleted from hierarchy: '+feederName.substring(0,25)
+           : '⚠ Could not delete from cloud — check Firebase rules',3500);
 }
 
 async function deleteFeederFromMap(fn,e){
   if(e)e.stopPropagation();
-  if(!confirm('Delete feeder "'+fn+'" from map?'))return;
+  if(!confirm('Delete feeder "'+fn+'" from map and Firebase hierarchy?'))return;
   if(focusedFeeder===fn)exitFocusedFeeder();
-  // ── Local cleanup of EVERY state map ──
+
+  let rowsForDelete=null;
+  const keys=[];
+  Object.keys(uploadedFiles).forEach(k=>{
+    if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){
+      keys.push(k);
+      rowsForDelete=uploadedFiles[k].rows || rowsForDelete;
+      delete uploadedFiles[k];
+      document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove();
+    }
+  });
+
+  // Local cleanup
   removeFeederLayers(fn);
   feederNames.delete(fn);
   delete feederState[fn];
@@ -4773,26 +4789,14 @@ async function deleteFeederFromMap(fn,e){
   delete feederSectionMap[fn];
   delete feederHierarchyMap[fn];
   if(typeof feederMetaMap!=='undefined')delete feederMetaMap[fn];
-  // Collect every Firebase key that maps to this feeder name.
-  const keys=[];
-  Object.keys(uploadedFiles).forEach(k=>{
-    if(uploadedFiles[k]&&uploadedFiles[k].feederName===fn){
-      keys.push(k);
-      delete uploadedFiles[k];
-      document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(k)+'"]')?.remove();
-    }
-  });
   buildFeederChecks();updateCounts();
   if(typeof buildHierFilters==='function')buildHierFilters();
   if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
-  // ── Firebase: 3-step bulletproof on each key ──
-  toast('🗑 Deleting from cloud (tombstone + soft + hard)…',1800);
-  const results=await Promise.all(
-    keys.map(k=>fbDelete('uploadedFeeders/'+safeFbKey(k), k, {feederName:fn}))
-  );
-  const allOk=results.length>0 && results.every(Boolean);
-  toast(allOk ? '🗑 Deleted: '+fn.substring(0,25)+' — survives refresh'
-              : '⚠ Cloud unreachable — local removal stuck for now',3500);
+
+  toast('🗑 Deleting from Firebase hierarchy…',1800);
+  const ok=await fbDeleteHierarchyFeeder(rowsForDelete?.[0] || null, fn);
+  toast(ok ? '🗑 Deleted from hierarchy: '+fn.substring(0,25)
+           : '⚠ Could not delete from cloud — check Firebase rules',3500);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -4841,12 +4845,12 @@ function refreshSectionDeleteDropdown(){
   if(cur&&entries.some(e=>(e.div+'|'+e.sub+'|'+e.sec)===cur))sel.value=cur;
 }
 
-async function deleteWholeSection(){
+async async function deleteWholeSection(){
   const sel=document.getElementById('dfSectionDel');
   const key=sel?.value;
   if(!key){toast('Pick a section first',2000);return;}
   const [div,sub,sec]=key.split('|');
-  // Find every uploaded feeder matching this exact hierarchy triple
+
   const targets=[];
   Object.entries(uploadedFiles||{}).forEach(([fkey,f])=>{
     if(!f||!f.feederName)return;
@@ -4856,12 +4860,12 @@ async function deleteWholeSection(){
     const fDiv=(h.division||m.div||'').toString().trim();
     const fSub=(h.sub_division||m.sub||'').toString().trim();
     const fSec=(h.section||m.sec||feederSectionMap[fn]||'').toString().trim();
-    if(fDiv===div&&fSub===sub&&fSec===sec)targets.push({key:fkey,fn});
+    if(fDiv===div&&fSub===sub&&fSec===sec)targets.push({key:fkey,fn,rows:f.rows});
   });
+
   if(!targets.length){toast('No feeders found in '+sec,2000);return;}
-  if(!confirm(`Delete the entire section "${sec}"?\n\nThis will remove ${targets.length} feeder(s) from:\n  • the map\n  • the side panel\n  • Firebase\n\nThis cannot be undone.`))return;
-  let n=0;
-  // Local cleanup of EVERY state map
+  if(!confirm(`Delete the entire section "${sec}"?\n\nThis will remove ${targets.length} feeder(s) from map, panel, and Firebase hierarchy.`))return;
+
   targets.forEach(({key,fn})=>{
     if(focusedFeeder===fn)exitFocusedFeeder();
     removeFeederLayers(fn);
@@ -4873,22 +4877,16 @@ async function deleteWholeSection(){
     delete feederMetaMap[fn];
     delete uploadedFiles[key];
     document.getElementById('dfFileSelect')?.querySelector('option[value="'+CSS.escape(key)+'"]')?.remove();
-    n++;
   });
-  buildFeederChecks();
-  updateCounts();
+
+  buildFeederChecks();updateCounts();
   if(typeof buildHierFilters==='function')buildHierFilters();
   refreshSectionDeleteDropdown();
-  // Firebase 3-step bulletproof on each, awaited.
-  toast(`🗑 Deleting ${n} feeder(s) from cloud…`,2000);
-  const results=await Promise.all(targets.map(({key,fn})=>
-    fbDelete('uploadedFeeders/'+safeFbKey(key), key, {feederName:fn})
-  ));
-  const allOk=results.length>0 && results.every(Boolean);
-  toast(allOk
-    ? `🗑 Section "${sec}" deleted — ${n} feeder(s) gone permanently`
-    : `⚠ Some deletes may not have synced — try FORCE SYNC ALL after refresh`,
-    4500);
+
+  toast(`🗑 Deleting section "${sec}" from Firebase hierarchy…`,2500);
+  const path=`divisions/${safeFbKey(div)}/sub_divisions/${safeFbKey(sub)}/sections/${safeFbKey(sec)}`;
+  const ok=await fbDeletePath(path);
+  toast(ok ? `🗑 Section "${sec}" deleted from hierarchy` : '⚠ Section cloud delete failed',4500);
 }
 /* =========================================================
    FIREBASE INTEGRATION — TGSPDCL KALYANNAGAR GIS
@@ -4940,6 +4938,118 @@ function fbGet(path){
   return fetch(`${FIREBASE_URL}/${path}.json`)
     .then(res=>{if(!res.ok)throw new Error('HTTP '+res.status);return res.json();})
     .catch(err=>{console.error('Firebase read error:',err);showFbStatus('error');return null;});
+}
+
+
+
+// ═════════════════════════════════════════════════════════════════
+// FIREBASE HIERARCHY SOURCE OF TRUTH
+// Saves/restores ONLY under:
+// divisions/{division}/sub_divisions/{sub}/sections/{section}/feeders/{feeder}
+// The old /uploadedFeeders path is no longer used for refresh restore.
+// ═════════════════════════════════════════════════════════════════
+function getRowValAny(row, keys, fallback=''){
+  row=row||{};
+  for(const k of keys){
+    if(row[k]!==undefined && row[k]!==null && String(row[k]).trim()!=='')return String(row[k]).trim();
+    const lk=String(k).toLowerCase();
+    const found=Object.keys(row).find(x=>String(x).trim().toLowerCase()===lk);
+    if(found && row[found]!==undefined && row[found]!==null && String(row[found]).trim()!=='')return String(row[found]).trim();
+  }
+  return fallback;
+}
+
+function getHierarchyFromRows(rows, feederNameFallback=''){
+  const first=(rows||[]).find(r=>r&&Object.keys(r).length)||{};
+  const feederName=getRowValAny(first,['feeder_name','Feeder Name','Feeder_Name','FEEDER_NAME'],feederNameFallback||'UNKNOWN_FEEDER');
+  return {
+    divisionName:getRowValAny(first,['division','Division','DIVISION'],'UNASSIGNED DIVISION'),
+    subdivisionName:getRowValAny(first,['sub_division','Sub Division','Sub-Division','Subdivision','SUB_DIVISION'],'UNASSIGNED SUB DIVISION'),
+    sectionName:getRowValAny(first,['section','Section','SECTION'],getSectionFromRows(rows||[],feederName)||'UNASSIGNED SECTION'),
+    feederName
+  };
+}
+
+function groupRowsByFeederForFirebase(rows,fileName=''){
+  const map={};
+  (rows||[]).forEach((row,idx)=>{
+    const fn=getRowValAny(row,['feeder_name','Feeder Name','Feeder_Name','FEEDER_NAME'],fileName.replace(/\.[^.]+$/,'')||'UNKNOWN_FEEDER');
+    if(!map[fn])map[fn]=[];
+    map[fn].push({...row,_idx:row._idx??idx});
+  });
+  return Object.entries(map).map(([feederName,rs])=>({feederName,rows:rs}));
+}
+
+function hierarchyFirebasePathFromNames(divisionName,subdivisionName,sectionName,feederName){
+  return `divisions/${safeFbKey(divisionName)}/sub_divisions/${safeFbKey(subdivisionName)}/sections/${safeFbKey(sectionName)}/feeders/${safeFbKey(feederName)}`;
+}
+
+function hierarchyFirebasePathFromRows(rows, feederNameFallback=''){
+  const h=getHierarchyFromRows(rows,feederNameFallback);
+  return hierarchyFirebasePathFromNames(h.divisionName,h.subdivisionName,h.sectionName,h.feederName);
+}
+
+async function fbPutPath(path,payload){
+  const res=await fetch(`${FIREBASE_URL}/${path}.json`,{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
+  });
+  if(!res.ok)throw new Error('Firebase PUT failed '+res.status+': '+(await res.text()).substring(0,150));
+  return true;
+}
+
+async function fbDeletePath(path){
+  const res=await fetch(`${FIREBASE_URL}/${path}.json`,{method:'DELETE'});
+  if(!res.ok){console.error('Firebase DELETE failed',path,res.status,await res.text());return false;}
+  return true;
+}
+
+async function fbSaveHierarchyFeeder(rows,fileName='',feederNameFallback=''){
+  const cleanRows=(rows||[]).map(row=>{
+    const r={};
+    Object.keys(row||{}).forEach(k=>{
+      let v=row[k];
+      if(v===undefined||v===null)v='';
+      else if(v instanceof Date)v=v.toISOString();
+      else v=String(v);
+      r[String(k)]=v;
+    });
+    return r;
+  });
+  if(!cleanRows.length)throw new Error('No rows for hierarchy save');
+  const h=getHierarchyFromRows(cleanRows,feederNameFallback);
+  const path=hierarchyFirebasePathFromNames(h.divisionName,h.subdivisionName,h.sectionName,h.feederName);
+  const payload={
+    meta:{
+      division:h.divisionName,
+      sub_division:h.subdivisionName,
+      section:h.sectionName,
+      feederName:h.feederName,
+      fileName:String(fileName||''),
+      rowCount:cleanRows.length,
+      updatedAt:new Date().toISOString()
+    },
+    rows:cleanRows
+  };
+  await fbPutPath(path,payload);
+  console.log('Firebase hierarchy save OK:',path,'rows:',cleanRows.length);
+  return {path,payload};
+}
+
+async function fbDeleteHierarchyFeeder(row0, feederNameFallback=''){
+  let path='';
+  if(row0){
+    path=hierarchyFirebasePathFromRows([row0], feederNameFallback);
+  }else{
+    const h=feederHierarchyMap[feederNameFallback]||{};
+    const m=feederMetaMap[feederNameFallback]||{};
+    path=hierarchyFirebasePathFromNames(
+      h.division||m.div||'UNASSIGNED DIVISION',
+      h.sub_division||m.sub||'UNASSIGNED SUB DIVISION',
+      h.section||m.sec||feederSectionMap[feederNameFallback]||'UNASSIGNED SECTION',
+      feederNameFallback
+    );
+  }
+  return fbDeletePath(path);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -5086,103 +5196,18 @@ function fbLoadFeederStatuses(){
 // ── Save uploaded feeder to Firebase ──
 // Rows stored as a single escaped JSON string to avoid ALL key sanitization issues
 async function fbSaveUploadedFeeder(key,feederName,rows,fileName){
-  showFbStatus('saving');
+  showFbStatus('saving','Saving to Firebase hierarchy...');
+  if(!rows||!rows.length)throw new Error('No rows to save');
 
-  // ── Determine hierarchy from the FIRST row ──
-  // We use this to write a parallel uploadedFeedersByHierarchy/<div>/<sub>/<sec>/<feeder>
-  // path that mirrors the UI tree. Makes Firebase easy to inspect.
-  const firstRow=(rows||[]).find(r=>r&&Object.keys(r).length)||{};
-  const div=String(firstRow.division||firstRow.Division||firstRow.DIVISION||'UNASSIGNED_DIVISION').trim()||'UNASSIGNED_DIVISION';
-  const sub=String(firstRow.sub_division||firstRow['Sub Division']||firstRow.SUB_DIVISION||firstRow.Sub_Division||'UNASSIGNED_SUB_DIVISION').trim()||'UNASSIGNED_SUB_DIVISION';
-  const sec=String(firstRow.section||firstRow.Section||firstRow.SECTION||'UNASSIGNED_SECTION').trim()||'UNASSIGNED_SECTION';
-
-  // ── Clear EVERY tombstone variant before writing the new data ──
-  // The delete code tombstones by BOTH file-key AND feeder-name, so the
-  // re-upload must clear both. Awaited so it can't race the PUT below.
-  const tombClearKeys=[...new Set([safeFbKey(key), safeFbKey(feederName)].filter(Boolean))];
-  for(const tk of tombClearKeys){
-    try{
-      await fetch(`${FIREBASE_URL}/deletedFeeders/${tk}.json`,{method:'DELETE'});
-    }catch(e){ /* fine */ }
+  const groups=groupRowsByFeederForFirebase(rows,fileName);
+  let saved=0;
+  for(const g of groups){
+    await fbSaveHierarchyFeeder(g.rows, fileName, g.feederName);
+    saved++;
   }
-  console.log('Cleared',tombClearKeys.length,'tombstone(s) for re-upload:',tombClearKeys);
-
-  try{
-    // Convert every value to string to ensure clean JSON
-    const cleanRows=rows.map(row=>{
-      const r={};
-      Object.keys(row).forEach(k=>{
-        let v=row[k];
-        if(v===undefined||v===null)v='';
-        else if(v instanceof Date)v=v.toISOString();
-        else v=String(v);
-        r[String(k)]=v;
-      });
-      return r;
-    });
-    // Store rows as a plain string — completely avoids Firebase key restrictions
-    const payload={
-      feederName:String(feederName),
-      fileName:String(fileName),
-      division:div,
-      subDivision:sub,
-      section:sec,
-      savedAt:new Date().toISOString(),
-      rowCount:cleanRows.length,
-      rowsJson:JSON.stringify(cleanRows)  // rows as string, not nested object
-    };
-    const path='uploadedFeeders/'+safeFbKey(key);
-    const hPath=`uploadedFeedersByHierarchy/${safeFbKey(div)}/${safeFbKey(sub)}/${safeFbKey(sec)}/${safeFbKey(feederName)}`;
-    const body=JSON.stringify(payload);
-
-    if(body.length>5*1024*1024){
-      console.warn('Large Firebase write:',(body.length/1024/1024).toFixed(2),'MB — file:',fileName);
-    }
-
-    // Write to BOTH the flat path (backward compat) and the
-    // hierarchical path (new structure mirroring the UI tree).
-    const flatPromise=fetch(FIREBASE_URL+'/'+path+'.json',{
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:body
-    });
-    const hierarchyPromise=fetch(FIREBASE_URL+'/'+hPath+'.json',{
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:body
-    });
-
-    Promise.all([flatPromise,hierarchyPromise])
-    .then(async function([flatRes,hRes]){
-      if(!flatRes.ok){
-        const t=await flatRes.text();
-        if(flatRes.status===401||/permission|denied|unauthor/i.test(t)){
-          console.error('═══════════════════════════════════════════════════');
-          console.error('  FIREBASE PERMISSION DENIED (401)');
-          console.error('  Open Firebase Console → Realtime Database → Rules');
-          console.error('  Set ".read":true and ".write":true → Publish');
-          console.error('═══════════════════════════════════════════════════');
-          throw new Error('PERMISSION DENIED — Firebase rules expired.');
-        }
-        throw new Error('HTTP '+flatRes.status+': '+t.substring(0,100));
-      }
-      console.log('Firebase save OK:');
-      console.log('  flat path:',path);
-      console.log('  hierarchy:',hPath);
-      console.log('  rows:',cleanRows.length);
-      toast('☁️ '+feederName.substring(0,30)+' saved (flat + hierarchical)',2500);
-      showFbStatus('saved');
-    })
-    .catch(function(err){
-      console.error('Firebase save error:',err.message);
-      showFbStatus('error');
-      toast('⚠️ CLOUD SAVE FAILED — '+err.message,6000);
-    });
-  }catch(err){
-    console.error('Firebase prep error:',err.message);
-    showFbStatus('error');
-    toast('⚠️ Data prep error: '+err.message,4000);
-  }
+  showFbStatus('saved','Hierarchy saved');
+  toast('☁️ Saved '+saved+' feeder(s) to hierarchy',2500);
+  return true;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -5192,185 +5217,104 @@ async function fbSaveUploadedFeeder(key,feederName,rows,fileName){
 // cloud was unreachable. Walks `uploadedFiles` sequentially with a
 // small delay so we don't hammer the endpoint.
 // ─────────────────────────────────────────────────────────────
-function forceSyncAllToFirebase(){
+async function forceSyncAllToFirebase(){
   const keys=Object.keys(uploadedFiles||{});
   if(!keys.length){toast('Nothing to sync — no uploaded files in memory',2500);return;}
-  if(!confirm(`Re-push ${keys.length} uploaded feeder(s) to Firebase?\n\nUse this if cloud save was failing earlier (e.g. after fixing Firebase rules).`))return;
-  toast(`☁️ Force-syncing ${keys.length} file(s) to Cloud…`,2500);
-  let i=0,ok=0,fail=0;
-  function step(){
-    if(i>=keys.length){
-      toast(`✅ Sync complete — ${ok} ok, ${fail} failed`,4500);
-      return;
-    }
-    const k=keys[i++];
+  if(!confirm(`Re-push ${keys.length} uploaded feeder/file record(s) to Firebase hierarchy?`))return;
+  toast(`☁️ Force-syncing ${keys.length} record(s) to hierarchy…`,2500);
+  let ok=0,fail=0;
+  for(const k of keys){
     const f=uploadedFiles[k];
-    if(!f||!f.rows){step();return;}
-    try{
-      // Re-use the standard save path; track success via setTimeout
-      fbSaveUploadedFeeder(k, f.feederName, f.rows, f.fileName||k);
-      ok++;
-    }catch(e){fail++;console.error('Force-sync failed for',k,e);}
-    setTimeout(step,250); // pace at ~4 writes/sec
+    if(!f||!f.rows)continue;
+    try{ await fbSaveUploadedFeeder(k, f.feederName, f.rows, f.fileName||k); ok++; }
+    catch(e){ fail++; console.error('Force-sync failed for',k,e); }
   }
-  step();
+  toast(`✅ Hierarchy sync complete — ${ok} ok, ${fail} failed`,4500);
 }
 
 // ── Load all uploaded feeders on startup ──
 async function fbLoadUploadedFiles(){
-  showFbStatus('loading');
-
-  console.log('═══ Firebase restore beginning ═══');
-  // Cache buster so the browser can't serve a stale JSON response
-  const cb=Date.now();
-
-  const tombstones=await fbGetTombstones();
-  console.log('Found',tombstones.size,'tombstone(s):',[...tombstones]);
-
+  showFbStatus('loading','Loading hierarchy...');
+  console.log('═══ Firebase hierarchy restore beginning ═══');
   try{
-    const res=await fetch(FIREBASE_URL+'/uploadedFeeders.json?cb='+cb);
+    const res=await fetch(`${FIREBASE_URL}/divisions.json?cb=`+Date.now());
     if(!res.ok){
       const t=await res.text();
       if(res.status===401||/permission|denied|unauthor/i.test(t)){
-        console.error('Firebase read permission denied. Check Realtime Database rules.');
         toast('⚠️ Cloud restore failed — Firebase rules denied. See console (F12).',7000);
       }
       throw new Error('HTTP '+res.status);
     }
-
-    const data=await res.json();
-    if(!data){
-      console.log('No uploadedFeeders/ data — nothing to restore');
+    const divisions=await res.json();
+    if(!divisions){
+      console.log('No /divisions hierarchy data — nothing to restore');
       showFbStatus('none');
       return;
     }
-    console.log('uploadedFeeders/ has',Object.keys(data).length,'top-level keys');
 
     const sel=document.getElementById('dfFileSelect');
-    let loaded=0, skippedDeleted=0, duplicateSkipped=0;
+    let loaded=0;
+    const restored=new Set();
 
-    // Prevent duplicate drawing if old Firebase has same feeder saved under multiple keys.
-    const restoredFeederNames=new Set();
+    Object.entries(divisions||{}).forEach(([divKey,divObj])=>{
+      const subs=divObj?.sub_divisions||{};
+      Object.entries(subs).forEach(([subKey,subObj])=>{
+        const sections=subObj?.sections||{};
+        Object.entries(sections).forEach(([secKey,secObj])=>{
+          const feeders=secObj?.feeders||{};
+          Object.entries(feeders).forEach(([feederKey,fObj])=>{
+            try{
+              const rows=Array.isArray(fObj?.rows)?fObj.rows:[];
+              if(!rows.length)return;
+              const meta=fObj.meta||{};
+              const first=rows.find(r=>r&&Object.keys(r).length)||{};
+              const finalFeederName=(meta.feederName||first.feeder_name||first['Feeder Name']||feederKey).toString().trim();
+              const uniquePath=`${divKey}/${subKey}/${secKey}/${feederKey}`;
+              if(restored.has(uniquePath))return;
+              restored.add(uniquePath);
 
-    Object.keys(data).forEach(function(k){
-      try{
-        const item=data[k];
-        if(!item){console.log('Skip',k,'— empty item');return;}
-        if(item.deleted===true){
-          console.log('Skip',k,'— item.deleted===true (soft-deleted)');
-          skippedDeleted++;
-          // Best-effort hard clean
-          fetch(`${FIREBASE_URL}/uploadedFeeders/${k}.json?cb=${Date.now()}`,{method:'DELETE'}).catch(()=>{});
-          return;
-        }
+              const fileKey=uniquePath;
+              const fileName=meta.fileName||finalFeederName;
+              const secName=(meta.sectionName||meta.section||first.section||first.Section||secKey).toString();
+              const divName=(meta.divisionName||meta.division||first.division||first.Division||divKey).toString();
+              const subName=(meta.subdivisionName||meta.sub_division||first.sub_division||first['Sub Division']||subKey).toString();
 
-        const fileKey=item.fileName||k;
-        const feederName=(item.feederName||fileKey.replace(/\.[^.]+$/,'')).trim();
+              uploadedFiles[fileKey]={fileName,feederName:finalFeederName,rows,section:secName};
+              feederSectionMap[finalFeederName]=secName;
+              feederHierarchyMap[finalFeederName]={division:divName,sub_division:subName,section:secName};
+              feederMetaMap[finalFeederName]=Object.assign(feederMetaMap[finalFeederName]||{}, {div:divName,sub:subName,sec:secName,source:'Firebase divisions hierarchy'});
 
-        // EVERY possible key the tombstone could be under
-        const candidateKeys=[
-          safeFbKey(k),
-          safeFbKey(fileKey),
-          safeFbKey(feederName)
-        ].filter(Boolean);
+              if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
+                const opt=document.createElement('option');
+                opt.value=fileKey;
+                opt.textContent=secName+' — '+fileName+' ('+finalFeederName.substring(0,20)+')';
+                sel.appendChild(opt);
+              }
 
-        const matchedTomb=candidateKeys.find(x=>tombstones.has(x));
-        if(matchedTomb){
-          console.log('Skip',k,'— tombstone matches:',matchedTomb);
-          skippedDeleted++;
-          // Best-effort hard clean
-          fetch(`${FIREBASE_URL}/uploadedFeeders/${k}.json?cb=${Date.now()}`,{method:'DELETE'}).catch(()=>{});
-          return;
-        }
-
-        let rows=[];
-        if(item.rowsJson){
-          try{ rows=JSON.parse(item.rowsJson||'[]'); }
-          catch(e){ console.error('Row parse error for',k,e); return; }
-        }else if(Array.isArray(item.rows)){
-          rows=item.rows;
-        }
-        if(!Array.isArray(rows)||!rows.length){
-          console.log('Skip',k,'— no rows');
-          return;
-        }
-
-        const firstRow=rows.find(r=>r&&Object.keys(r).length) || {};
-        const rowFeederName=(
-          firstRow.feeder_name ||
-          firstRow.Feeder_Name ||
-          firstRow['Feeder Name'] ||
-          firstRow.FEEDER_NAME ||
-          feederName
-        ).toString().trim();
-
-        const finalFeederName=rowFeederName || feederName;
-        const feederKey=finalFeederName.toUpperCase();
-
-        if(restoredFeederNames.has(feederKey)){
-          console.log('Skip',k,'— duplicate feeder name:',finalFeederName);
-          duplicateSkipped++;
-          return;
-        }
-        restoredFeederNames.add(feederKey);
-
-        const hierarchyRow=rows.find(r=>
-          r && (
-            r.division || r.Division || r.DIVISION ||
-            r.sub_division || r['Sub Division'] || r.SUB_DIVISION ||
-            r.section || r.Section || r.SECTION
-          )
-        ) || firstRow;
-
-        const div=(hierarchyRow.division||hierarchyRow.Division||hierarchyRow.DIVISION||'UNASSIGNED DIVISION').toString().trim()||'UNASSIGNED DIVISION';
-        const sub=(hierarchyRow.sub_division||hierarchyRow['Sub Division']||hierarchyRow.Sub_Division||hierarchyRow.SUB_DIVISION||'UNASSIGNED SUB DIVISION').toString().trim()||'UNASSIGNED SUB DIVISION';
-        const sec=(hierarchyRow.section||hierarchyRow.Section||hierarchyRow.SECTION||getSectionFromRows(rows,finalFeederName)||'UNASSIGNED SECTION').toString().trim()||'UNASSIGNED SECTION';
-
-        uploadedFiles[fileKey]={fileName:fileKey,feederName:finalFeederName,rows,section:sec};
-
-        feederSectionMap[finalFeederName]=sec;
-        feederHierarchyMap[finalFeederName]={division:div,sub_division:sub,section:sec};
-        feederMetaMap[finalFeederName]=Object.assign(feederMetaMap[finalFeederName]||{},{
-          div:div, sub:sub, sec:sec, source:'Firebase uploadedFeeders'
+              renderUploadedRows(rows,fileName);
+              loaded++;
+              console.log('✓ Restored hierarchy feeder',finalFeederName,'from',uniquePath);
+            }catch(err){
+              console.error('Hierarchy feeder restore error:',divKey,subKey,secKey,feederKey,err);
+            }
+          });
         });
-
-        if(sel&&!sel.querySelector('option[value="'+CSS.escape(fileKey)+'"]')){
-          const opt=document.createElement('option');
-          opt.value=fileKey;
-          opt.textContent=sec+' — '+fileKey+' ('+finalFeederName.substring(0,20)+')';
-          sel.appendChild(opt);
-        }
-
-        renderUploadedRows(rows,fileKey);
-        loaded++;
-        console.log('✓ Restored',finalFeederName,'('+sec+')');
-      }catch(err){
-        console.error('Error loading Firebase feeder:',k,err.message||err);
-      }
+      });
     });
 
-    console.log('═══ Restore done: loaded',loaded,'· skipped',skippedDeleted,'deleted ·',duplicateSkipped,'duplicates ═══');
-
+    console.log('═══ Hierarchy restore done: loaded',loaded,'feeder(s) ═══');
     if(loaded>0){
-      buildFeederChecks();
-      updateCounts();
+      buildFeederChecks();updateCounts();
       if(typeof buildHierFilters==='function')buildHierFilters();
       if(typeof refreshSectionDeleteDropdown==='function')refreshSectionDeleteDropdown();
       feederNames.forEach(function(fn){attachSegmentDistanceClick(fn);});
-
-      let msg='☁️ '+loaded+' Firebase feeder(s) restored';
-      if(skippedDeleted>0)msg+=' | '+skippedDeleted+' deleted skipped';
-      if(duplicateSkipped>0)msg+=' | '+duplicateSkipped+' duplicate skipped';
-      toast(msg,4500);
+      toast('☁️ '+loaded+' hierarchy feeder(s) restored',4500);
       showFbStatus('saved');
-    }else if(skippedDeleted>0){
-      toast('☁️ All cloud records were tombstoned — '+skippedDeleted+' skipped',3500);
-      showFbStatus('none');
     }else{
       showFbStatus('none');
     }
   }catch(err){
-    console.error('Firebase load error:',err.message||err);
+    console.error('Firebase hierarchy load error:',err.message||err);
     showFbStatus('error');
   }
 }
@@ -5399,9 +5343,9 @@ async function nukeAllUploadedFromFirebase(){
   toast('☢️ Nuking Firebase upload data…',2500);
   try{
     const results=await Promise.allSettled([
+      fetch(`${FIREBASE_URL}/divisions.json`,{method:'DELETE'}),
       fetch(`${FIREBASE_URL}/uploadedFeeders.json`,{method:'DELETE'}),
       fetch(`${FIREBASE_URL}/uploadedFeedersByHierarchy.json`,{method:'DELETE'}),
-      fetch(`${FIREBASE_URL}/deletedFeeders.json`,{method:'DELETE'}),
     ]);
     const ok=results.filter(r=>r.status==='fulfilled'&&r.value.ok).length;
     console.log('Nuclear purge complete:',ok,'/',results.length,'paths cleared');
