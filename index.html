@@ -4845,7 +4845,7 @@ function refreshSectionDeleteDropdown(){
   if(cur&&entries.some(e=>(e.div+'|'+e.sub+'|'+e.sec)===cur))sel.value=cur;
 }
 
-async async function deleteWholeSection(){
+async function deleteWholeSection(){
   const sel=document.getElementById('dfSectionDel');
   const key=sel?.value;
   if(!key){toast('Pick a section first',2000);return;}
